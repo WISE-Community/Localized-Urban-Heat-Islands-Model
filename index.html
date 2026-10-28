@@ -1,0 +1,1910 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Urban Heat Islands — configurable city model (WISE prototype)</title>
+    <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
+    <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+    <style>
+      :root {
+        color-scheme: light;
+        --surface-0: #f4f4f1;
+        --surface-1: #fcfcfb;
+        --surface-2: #eceae4;
+        --line: #dcdad2;
+        --text-primary: #0b0b0b;
+        --text-secondary: #52514e;
+        --text-muted: #7a7873;
+        --series-city: #eb6834; /* categorical slot 2 — the city */
+        --series-rural: #2a78d6; /* categorical slot 1 — surrounding area */
+        --accent: #1baf7a;
+        --radius: 10px;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--surface-0);
+        color: var(--text-primary);
+        font:
+          15px/1.5 "Inter",
+          "Helvetica Neue",
+          Arial,
+          system-ui,
+          sans-serif;
+      }
+      header {
+        background: var(--surface-1);
+        border-bottom: 1px solid var(--line);
+        padding: 14px 20px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        align-items: center;
+      }
+      header h1 {
+        font-size: 17px;
+        margin: 0;
+        font-weight: 600;
+        letter-spacing: -0.2px;
+      }
+      header .sub {
+        font-size: 12.5px;
+        color: var(--text-muted);
+        margin-top: 2px;
+      }
+      .grow {
+        flex: 1;
+      }
+      .pill {
+        font-size: 12px;
+        color: var(--text-secondary);
+        background: var(--surface-2);
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 4px 10px;
+      }
+      main {
+        max-width: 1240px;
+        margin: 0 auto;
+        padding: 20px;
+        display: grid;
+        gap: 16px;
+      }
+      .row {
+        display: grid;
+        grid-template-columns: 1.25fr 1fr;
+        gap: 16px;
+      }
+      @media (max-width: 980px) {
+        .row {
+          grid-template-columns: 1fr;
+        }
+      }
+      .card {
+        background: var(--surface-1);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 16px;
+      }
+      .card h2 {
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--text-muted);
+        margin: 0 0 12px;
+        font-weight: 600;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        border-radius: 8px;
+      }
+      #mapwrap {
+        position: relative;
+        height: 480px;
+        border-radius: 8px;
+        overflow: hidden;
+        background: #bcd9ef;
+      }
+      #map {
+        position: absolute;
+        inset: 0;
+      }
+      .mapoverlay {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        transition: opacity 0.4s;
+      }
+      #heatOverlay {
+        background: radial-gradient(
+          ellipse at 50% 65%,
+          rgba(227, 73, 72, 0.55),
+          rgba(227, 73, 72, 0.12) 72%
+        );
+        opacity: 0;
+      }
+      #nightOverlay {
+        background: #0b1a33;
+        opacity: 0;
+      }
+      #mapCaption {
+        position: absolute;
+        top: 10px;
+        left: 12px;
+        z-index: 5;
+        pointer-events: none;
+        background: rgba(252, 252, 251, 0.88);
+        border-radius: 6px;
+        padding: 6px 10px;
+      }
+      #mapCaption b {
+        font-size: 14px;
+        display: block;
+      }
+      #mapCaption span {
+        font-size: 12px;
+        color: var(--text-secondary);
+        display: block;
+      }
+      #mapCaption #mapGreen {
+        color: #3f7e3b;
+      }
+      #rays {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 4;
+      }
+      #mapFallback {
+        position: absolute;
+        inset: 0;
+        display: none;
+        place-items: center;
+        text-align: center;
+        padding: 20px;
+        font-size: 13px;
+        color: var(--text-secondary);
+        background: var(--surface-2);
+        z-index: 6;
+      }
+      .controls {
+        display: grid;
+        gap: 14px;
+        margin-top: 14px;
+      }
+      .ctl label {
+        display: flex;
+        justify-content: space-between;
+        font-size: 13.5px;
+        color: var(--text-secondary);
+        margin-bottom: 6px;
+      }
+      .ctl label b {
+        color: var(--text-primary);
+        font-variant-numeric: tabular-nums;
+      }
+      input[type="range"] {
+        width: 100%;
+        accent-color: var(--accent);
+      }
+      select,
+      input[type="text"],
+      input[type="number"] {
+        font: inherit;
+        font-size: 13.5px;
+        padding: 6px 8px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: var(--surface-1);
+        color: var(--text-primary);
+      }
+      button {
+        font: inherit;
+        font-size: 13.5px;
+        font-weight: 500;
+        padding: 7px 14px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: var(--surface-1);
+        color: var(--text-primary);
+        cursor: pointer;
+      }
+      button:hover {
+        background: var(--surface-2);
+      }
+      button.primary {
+        background: #0b0b0b;
+        color: #fff;
+        border-color: #0b0b0b;
+      }
+      button.primary:hover {
+        background: #2a2a2a;
+      }
+      .cardtop {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+      .unit-toggle {
+        display: inline-flex;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        overflow: hidden;
+        background: var(--surface-1);
+      }
+      .unit-toggle button {
+        border: none;
+        border-radius: 0;
+        padding: 4px 12px;
+        font-size: 12.5px;
+        color: var(--text-secondary);
+      }
+      .unit-toggle button:hover {
+        background: var(--surface-2);
+      }
+      .unit-toggle button.on {
+        background: #0b0b0b;
+        color: #fff;
+      }
+      .unit-toggle button.on:hover {
+        background: #0b0b0b;
+      }
+      .trialdd {
+        position: relative;
+        display: inline-block;
+        border-top: none;
+        padding-top: 0;
+        margin-top: 10px;
+      }
+      .trialdd summary {
+        list-style: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        font-size: 13.5px;
+        font-weight: 500;
+        color: var(--text-primary);
+        background: var(--surface-1);
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 7px 14px;
+      }
+      .trialdd summary::-webkit-details-marker {
+        display: none;
+      }
+      .trialdd summary::after {
+        content: "\25be";
+        color: var(--text-muted);
+      }
+      .trialdd[open] summary {
+        background: var(--surface-2);
+      }
+      .trialpanel {
+        position: absolute;
+        z-index: 20;
+        top: calc(100% + 6px);
+        left: 0;
+        min-width: 320px;
+        background: var(--surface-1);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 12px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+      }
+      .trialrow {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 5px 2px;
+        font-size: 13px;
+        color: var(--text-secondary);
+      }
+      .trialrow input {
+        accent-color: var(--accent);
+        flex: none;
+      }
+      .trialrow .sw {
+        width: 10px;
+        height: 10px;
+        border-radius: 2px;
+        flex: none;
+      }
+      .trialrow label {
+        cursor: pointer;
+      }
+      .trialrow .del {
+        margin-left: auto;
+        border: none;
+        background: none;
+        color: var(--text-muted);
+        cursor: pointer;
+        padding: 2px 6px;
+        flex: none;
+      }
+      .trialrow .del:hover {
+        color: #c0392b;
+        background: none;
+      }
+      #chartTip {
+        position: absolute;
+        z-index: 15;
+        pointer-events: none;
+        max-width: 240px;
+        background: rgba(11, 11, 11, 0.92);
+        color: #fff;
+        border-radius: 6px;
+        padding: 8px 10px;
+        font-size: 12px;
+        line-height: 1.5;
+      }
+      #chartTip b {
+        display: block;
+        font-size: 12.5px;
+        margin-bottom: 2px;
+      }
+      .btnrow {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 14px;
+      }
+      .tiles {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        margin-bottom: 14px;
+      }
+      .tile {
+        background: var(--surface-2);
+        border-radius: 8px;
+        padding: 10px 12px;
+      }
+      .tile .k {
+        font-size: 11.5px;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      .tile .v {
+        font-size: 22px;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: -0.5px;
+        margin-top: 2px;
+      }
+      .legend {
+        display: flex;
+        gap: 16px;
+        font-size: 13px;
+        color: var(--text-secondary);
+        margin-top: 10px;
+        flex-wrap: wrap;
+      }
+      .swatch {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 2px;
+        margin-right: 6px;
+        vertical-align: middle;
+      }
+      details {
+        border-top: 1px solid var(--line);
+        padding-top: 12px;
+        margin-top: 4px;
+      }
+      summary {
+        cursor: pointer;
+        font-size: 13.5px;
+        font-weight: 500;
+        color: var(--text-secondary);
+      }
+      pre {
+        background: var(--surface-2);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 12px;
+        overflow: auto;
+        font-size: 12px;
+        line-height: 1.55;
+        margin: 12px 0 0;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        font-size: 13px;
+        margin-top: 10px;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 6px 8px;
+        border-bottom: 1px solid var(--line);
+      }
+      th {
+        color: var(--text-muted);
+        font-weight: 600;
+        font-size: 11.5px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      td.num {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+      .authorgrid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+        gap: 12px;
+        margin-top: 12px;
+      }
+      .authorgrid .f {
+        display: grid;
+        gap: 5px;
+      }
+      .authorgrid .f span {
+        font-size: 12px;
+        color: var(--text-muted);
+      }
+      .note {
+        font-size: 12.5px;
+        color: var(--text-muted);
+        margin-top: 10px;
+        line-height: 1.6;
+      }
+      .hookmark {
+        border-left: 3px solid var(--accent);
+        padding-left: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div>
+        <h1>Urban Heat Islands — configurable city model</h1>
+        <div class="sub">
+          Prototype rebuild of the WISE Snap! model as a plain web app · every city detail is a
+          parameter
+        </div>
+      </div>
+      <div class="grow"></div>
+      <span class="pill" id="cityPill">San Francisco, CA</span>
+      <span class="pill" id="monthPill">July</span>
+    </header>
+
+    <main>
+      <div class="row">
+        <!-- ============ CITY SCENE ============ -->
+        <section class="card">
+          <h2>City view &mdash; real 3D map</h2>
+          <div id="mapwrap">
+            <div id="map"></div>
+            <div class="mapoverlay" id="heatOverlay"></div>
+            <div class="mapoverlay" id="nightOverlay"></div>
+            <canvas id="rays"></canvas>
+            <div id="mapCaption">
+              <b id="mapCity"></b><span id="mapClock"></span><span id="mapGreen"></span>
+            </div>
+            <div id="mapFallback">
+              The 3D map needs an internet connection.<br />
+              Check the connection and reload &mdash; the model itself still works.
+            </div>
+          </div>
+          <div class="legend">
+            <span><i class="swatch" style="background: #f2c14e"></i>Sunlight in</span>
+            <span
+              ><i class="swatch" style="background: #bee6ff"></i>Reflected &mdash; cool roofs bounce
+              the most</span
+            >
+            <span
+              ><i class="swatch" style="background: #e34948"></i>Dark roofs &amp; streets absorb
+              &rarr; heat</span
+            >
+            <span
+              ><i class="swatch" style="background: #57c4a3"></i>Trees &amp; grass absorb &rarr;
+              water evaporates, stays cool</span
+            >
+            <span
+              ><i class="swatch" style="background: #f2f4f6; border: 1px solid #dcdad2"></i>Building
+              color &mdash; cool-roof %</span
+            >
+          </div>
+
+          <div class="controls">
+            <div class="ctl">
+              <label for="roofs"
+                >Reflective (cool) roofs <b><span id="roofsV">0</span>%</b></label
+              >
+              <input type="range" id="roofs" min="0" max="100" value="0" step="5" />
+            </div>
+            <div class="ctl">
+              <label for="trees"
+                >Tree &amp; green space cover <b><span id="treesV">15</span>%</b></label
+              >
+              <input type="range" id="trees" min="0" max="100" value="15" step="5" />
+            </div>
+          </div>
+
+          <div class="btnrow">
+            <button class="primary" id="runBtn">Run model</button>
+            <button id="resetBtn">Reset</button>
+          </div>
+        </section>
+
+        <!-- ============ TEMPERATURE ============ -->
+        <section class="card">
+          <div class="cardtop">
+            <h2 style="margin: 0">Temperature through one day</h2>
+            <div
+              class="unit-toggle"
+              role="group"
+              aria-label="Temperature unit"
+              title="Switch between Celsius and Fahrenheit"
+            >
+              <button id="unitC" type="button">&deg;C</button
+              ><button id="unitF" class="on" type="button">&deg;F</button>
+            </div>
+          </div>
+          <div class="tiles">
+            <div class="tile">
+              <div class="k">City right now</div>
+              <div class="v" id="tCity" style="color: var(--series-city)">—</div>
+            </div>
+            <div class="tile">
+              <div class="k">Avg daytime temp</div>
+              <div class="v" id="tDayAvg">—</div>
+            </div>
+            <div class="tile">
+              <div class="k">Heat island</div>
+              <div class="v" id="tDiff">—</div>
+            </div>
+          </div>
+          <div id="chartwrap" style="position: relative">
+            <canvas id="chart" width="720" height="380"></canvas>
+            <div id="chartTip" hidden></div>
+          </div>
+          <div class="legend">
+            <span
+              ><i class="swatch" style="background: var(--series-city)"></i>City (current run)</span
+            >
+            <span
+              ><i class="swatch" style="background: #8d8a80"></i>Saved trials (dashed) &mdash; hover
+              a line for details</span
+            >
+          </div>
+          <details class="trialdd" id="trialDD">
+            <summary id="trialSummary">Trials (0)</summary>
+            <div class="trialpanel">
+              <div class="note" id="trialEmpty" style="margin-top: 0">
+                Run the model for a full day &mdash; every finished run is saved here as a trial you
+                can show on the chart.
+              </div>
+              <div id="trialList"></div>
+              <div class="btnrow" style="margin-top: 10px">
+                <button id="trialAll" type="button">Show all</button>
+                <button id="trialNone" type="button">Hide all</button>
+                <button id="trialClear" type="button">Delete all</button>
+              </div>
+            </div>
+          </details>
+          <div class="note" id="dataNote"></div>
+        </section>
+      </div>
+
+      <!-- ============ AUTHOR / TEACHER PANEL ============ -->
+      <section class="card">
+        <h2>Author panel — localize this model for your school</h2>
+        <p class="note hookmark" style="margin-top: 0">
+          This is the &ldquo;hook&rdquo; the meeting asked about. Nothing below is hard-coded in the
+          simulation &mdash; a teacher or unit author changes these values and the model, the
+          picture, and the temperature data all follow. In WISE this panel would be the step&rsquo;s
+          authoring form; the simulation only ever reads a config object.
+        </p>
+
+        <div class="authorgrid">
+          <label class="f" style="grid-column: 1/-1"
+            ><span>Location &mdash; type any city, neighborhood, or school address</span>
+            <span style="display: flex; gap: 8px">
+              <input
+                type="text"
+                id="locIn"
+                list="cityOpts"
+                placeholder="e.g. Berkeley, CA &mdash; or any address"
+                style="flex: 1"
+              />
+              <button id="locBtn" type="button">Find</button>
+            </span>
+          </label>
+          <div
+            id="locResults"
+            class="note"
+            style="grid-column: 1/-1; display: none; margin-top: 0"
+          ></div>
+          <label class="f"
+            ><span>Month</span
+            ><select id="monthSel"></select
+          ></label>
+          <label class="f"
+            ><span>Scene label shown to students</span> <input type="text" id="labelIn" value=""
+          /></label>
+        </div>
+
+        <div class="btnrow">
+          <button id="applyBtn" class="primary">Apply to the model</button>
+          <button id="copyBtn">Copy this config</button>
+          <button id="linkBtn">Copy a shareable link</button>
+        </div>
+
+        <details open>
+          <summary>The config object the simulation actually reads</summary>
+          <pre id="configOut"></pre>
+        </details>
+
+        <details>
+          <summary>Where the temperature numbers come from</summary>
+          <div class="note">
+            Each city carries a table of monthly average temperatures. The simulation adds a
+            heat-island effect on top of that baseline, calculated from how much sunlight the
+            city&rsquo;s surfaces absorb. Swap the table &rarr; the whole model moves to that city.
+            The 8 built-in cities use approximate 1991&ndash;2020 normals typed into the file. A
+            typed location fetches real reanalysis data automatically: 10 years of daily
+            temperatures (ERA5, 2014&ndash;2023) from the free Open-Meteo API, averaged into the
+            monthly table below at author time.
+          </div>
+          <table id="climTable">
+            <thead>
+              <tr>
+                <th>Month</th>
+                <th class="num" id="climTempTh">Avg temp (&deg;C)</th>
+                <th class="num">Sun strength</th>
+                <th class="num" id="climUhiTh">Heat island (&deg;C)</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </details>
+
+        <details>
+          <summary>How the heat-island number is calculated (open for researchers)</summary>
+          <pre id="mathOut"></pre>
+        </details>
+      </section>
+
+      <section class="card">
+        <h2>How WISE would talk to this model</h2>
+        <pre id="apiOut"></pre>
+        <div class="note">
+          Student actions are already emitted as WISE-style events. In the real unit these go
+          through <code>wiseAPI</code> exactly like the Snap! version does &mdash; the difference is
+          that here the model is ordinary HTML/JS, so both the parameters and the logged data are
+          readable without opening Snap!.
+        </div>
+        <pre id="logOut" style="max-height: 180px">(student actions will appear here)</pre>
+      </section>
+    </main>
+
+    <script>
+      /* ==========================================================================
+   1. CONFIG  —  the whole point of the prototype.
+   Everything a teacher/author would want to change lives in this one object.
+   ========================================================================== */
+
+      const CITY_DATA = {
+        /* monthly mean air temperature, °C. Approximate 1991–2020 normals.
+     PROTOTYPE VALUES — verify against NOAA station data before classroom use.
+     lat/lon: downtown viewpoint used to center the 3D map. */
+        "san-francisco": {
+          name: "San Francisco, CA",
+          lat: 37.7897,
+          lon: -122.3981,
+          temps: [11.0, 12.2, 13.0, 13.7, 14.6, 16.0, 16.5, 17.1, 17.5, 16.4, 13.4, 10.9],
+        },
+        oakland: {
+          name: "Oakland, CA",
+          lat: 37.8049,
+          lon: -122.2712,
+          temps: [11.2, 12.6, 13.7, 14.8, 16.2, 18.0, 18.8, 19.2, 19.4, 17.6, 13.9, 11.0],
+        },
+        richmond: {
+          name: "Richmond, CA",
+          lat: 37.9357,
+          lon: -122.3477,
+          temps: [10.7, 12.0, 13.1, 14.2, 15.7, 17.4, 18.1, 18.5, 18.6, 16.8, 13.3, 10.5],
+        },
+        sacramento: {
+          name: "Sacramento, CA",
+          lat: 38.5789,
+          lon: -121.4944,
+          temps: [8.5, 10.6, 12.8, 15.2, 18.7, 22.3, 24.5, 24.2, 22.4, 18.1, 12.3, 8.3],
+        },
+        "los-angeles": {
+          name: "Los Angeles, CA",
+          lat: 34.0505,
+          lon: -118.2551,
+          temps: [14.5, 14.8, 15.6, 16.9, 18.2, 20.2, 22.4, 23.0, 22.3, 20.0, 16.8, 14.0],
+        },
+        "new-york": {
+          name: "New York, NY",
+          lat: 40.7127,
+          lon: -74.01,
+          temps: [1.0, 2.2, 6.1, 11.8, 17.2, 22.2, 25.1, 24.4, 20.6, 14.4, 8.9, 3.9],
+        },
+        chicago: {
+          name: "Chicago, IL",
+          lat: 41.8823,
+          lon: -87.6297,
+          temps: [-4.6, -3.0, 3.0, 9.6, 15.6, 21.2, 24.0, 23.1, 19.2, 12.2, 5.0, -1.5],
+        },
+        phoenix: {
+          name: "Phoenix, AZ",
+          lat: 33.4484,
+          lon: -112.074,
+          temps: [13.0, 15.0, 18.3, 22.5, 27.4, 32.6, 34.8, 34.1, 31.0, 24.5, 17.3, 12.4],
+        },
+      };
+
+      const MONTHS = [
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December",
+      ];
+
+      /* ---- THE CONFIG A WISE AUTHOR WOULD EDIT ---- */
+      let CONFIG = {
+        city: "san-francisco",
+        month: 6, // 0 = January
+        label: "", // optional caption shown to students
+        startRoofs: 0, // starting slider values
+        startTrees: 15,
+        unit: "F", // "C" or "F" — what students see; the model itself runs in °C
+        dayLengthSeconds: 18, // how long one simulated day takes to play
+      };
+
+      /* ==========================================================================
+   2. MODEL  —  small, explicit, and readable on purpose.
+   ========================================================================== */
+
+      const ALBEDO = {
+        roofStandard: 0.15, // dark asphalt / tar roof
+        roofCool: 0.65, // white or reflective coating
+        pavement: 0.12, // asphalt street & parking
+        green: 0.2, // trees, grass, park
+      };
+
+      // how much of the city footprint is roof vs street vs green
+      function surfaceMix(treePct) {
+        const green = 0.05 + 0.4 * (treePct / 100);
+        const roof = 0.35;
+        return { roof, green, pave: Math.max(0.05, 1 - roof - green) };
+      }
+
+      // effective albedo: the share of sunlight the whole city bounces back
+      function cityAlbedo(roofPct, treePct) {
+        const m = surfaceMix(treePct);
+        const roofA =
+          ALBEDO.roofStandard + (ALBEDO.roofCool - ALBEDO.roofStandard) * (roofPct / 100);
+        return m.roof * roofA + m.pave * ALBEDO.pavement + m.green * ALBEDO.green;
+      }
+
+      // noon sun strength for this latitude and month, 0..1
+      function sunStrength(lat, month) {
+        const dayOfYear = 15 + month * 30.4;
+        const decl = (23.44 * Math.sin((2 * Math.PI * (284 + dayOfYear)) / 365) * Math.PI) / 180;
+        const L = (lat * Math.PI) / 180;
+        return Math.max(0, Math.sin(L) * Math.sin(decl) + Math.cos(L) * Math.cos(decl));
+      }
+
+      const HEAT_GAIN = 7.0; // °C per unit of absorbed sunlight
+      const TREE_COOL = 3.5; // °C of extra cooling from evapotranspiration
+
+      // the heat-island intensity, in °C, for these settings
+      function heatIsland(roofPct, treePct, lat, month) {
+        const a = cityAlbedo(roofPct, treePct);
+        const m = surfaceMix(treePct);
+        const potential = HEAT_GAIN * (1 - a) - TREE_COOL * m.green;
+        return Math.max(0, potential) * sunStrength(lat, month);
+      }
+
+      // shape of a normal day: coolest ~5am, warmest ~5pm
+      const DAILY_SWING = 6.0;
+      function dayShape(h) {
+        return -Math.cos((2 * Math.PI * (h - 5)) / 24);
+      }
+
+      function ruralTempAt(h, baseTemp) {
+        return baseTemp + DAILY_SWING * 0.5 * dayShape(h);
+      }
+      function cityTempAt(h, baseTemp, dT) {
+        const lag = dayShape(h - 2); // city peaks a bit later than open land
+        return ruralTempAt(h, baseTemp) + dT * (0.4 + (0.6 * (lag + 1)) / 2);
+      }
+
+      /* ==========================================================================
+   3. STATE
+   ========================================================================== */
+
+      const TRIAL_COLORS = ["#8d8a80", "#9b6dc8", "#2f9e8f", "#c95d8f", "#96892f", "#b06c49"];
+
+      let state = {
+        roofs: CONFIG.startRoofs,
+        trees: CONFIG.startTrees,
+        hour: 0,
+        running: false,
+        lastFrame: 0,
+        trials: [], // every completed run is saved here automatically
+        nextTrialId: 1,
+      };
+
+      const $ = (id) => document.getElementById(id);
+      const city = () => CITY_DATA[CONFIG.city];
+      const base = () => city().temps[CONFIG.month];
+      const dT = () => heatIsland(state.roofs, state.trees, city().lat, CONFIG.month);
+
+      /* ---- unit display helpers: the model always computes in °C ---- */
+      const toUnit = (c) => (CONFIG.unit === "F" ? (c * 9) / 5 + 32 : c); // absolute temps
+      const toUnitD = (c) => (CONFIG.unit === "F" ? (c * 9) / 5 : c); // differences (no +32)
+      const unitLbl = () => "\u00b0" + CONFIG.unit;
+
+      /* ==========================================================================
+   4. CITY VIEW — a real 3D map of the selected location.
+      MapLibre GL JS + OpenFreeMap vector tiles (open data, no API key).
+      The physics model is unchanged; the map is only the visual layer.
+   ========================================================================== */
+
+      let map = null,
+        mapReady = false;
+
+      // building color follows the cool-roof slider: dark roofs -> reflective white
+      function roofColor() {
+        const t = state.roofs / 100;
+        const ch = (a, b) => Math.round(a + (b - a) * t);
+        return `rgb(${ch(146, 242)}, ${ch(150, 244)}, ${ch(158, 246)})`;
+      }
+
+      function paintRoofs() {
+        if (!mapReady) return;
+        ["uhi-3d-buildings", "building-3d"].forEach((id) => {
+          if (map.getLayer(id)) {
+            try {
+              map.setPaintProperty(id, "fill-extrusion-color", roofColor());
+            } catch (err) {}
+          }
+        });
+      }
+
+      function initMap() {
+        if (typeof maplibregl === "undefined") {
+          $("mapFallback").style.display = "grid";
+          return;
+        }
+        try {
+          map = new maplibregl.Map({
+            container: "map",
+            style: "https://tiles.openfreemap.org/styles/liberty",
+            center: [city().lon, city().lat],
+            zoom: 15.6,
+            pitch: 60,
+            bearing: -17,
+            minZoom: 13.5, // can't zoom out past neighborhood scale
+            dragRotate: false, // no right-click / ctrl-drag rotating or tilting
+            pitchWithRotate: false,
+            touchPitch: false,
+          });
+          map.touchZoomRotate.disableRotation(); // no two-finger rotate
+          try {
+            map.keyboard.disableRotation();
+          } catch (err) {} // no shift+arrow rotate
+          map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+          map.on("error", () => {
+            if (!mapReady) $("mapFallback").style.display = "grid";
+          });
+          map.on("load", () => {
+            mapReady = true;
+            $("mapFallback").style.display = "none";
+            try {
+              map.addLayer({
+                id: "uhi-3d-buildings",
+                source: "openmaptiles",
+                "source-layer": "building",
+                type: "fill-extrusion",
+                minzoom: 13,
+                paint: {
+                  "fill-extrusion-color": roofColor(),
+                  "fill-extrusion-height": ["coalesce", ["get", "render_height"], 12],
+                  "fill-extrusion-base": ["coalesce", ["get", "render_min_height"], 0],
+                  "fill-extrusion-opacity": 0.92,
+                },
+              });
+            } catch (err) {
+              /* style may already ship its own 3D layer — that's fine */
+            }
+            try {
+              map.addImage("uhi-tree-icon", makeTreeIcon(), { pixelRatio: 2 });
+              map.addSource("uhi-trees", { type: "geojson", data: makeTreeData() });
+              map.addLayer({
+                // grass: soft patches flat on the ground
+                id: "uhi-grass",
+                source: "uhi-trees",
+                type: "circle",
+                filter: ["==", ["get", "kind"], "grass"],
+                paint: {
+                  "circle-color": "#7fb069",
+                  "circle-opacity": 0.45,
+                  "circle-blur": 0.7,
+                  "circle-pitch-alignment": "map",
+                  "circle-radius": [
+                    "interpolate",
+                    ["linear"],
+                    ["zoom"],
+                    12,
+                    ["*", 3, ["get", "scale"]],
+                    15,
+                    ["*", 11, ["get", "scale"]],
+                    17,
+                    ["*", 26, ["get", "scale"]],
+                  ],
+                },
+              });
+              map.addLayer({
+                // trees: upright sprites, varied sizes
+                id: "uhi-trees",
+                source: "uhi-trees",
+                type: "symbol",
+                filter: ["==", ["get", "kind"], "tree"],
+                layout: {
+                  "icon-image": "uhi-tree-icon",
+                  "icon-anchor": "bottom",
+                  "icon-allow-overlap": true,
+                  "icon-ignore-placement": true,
+                  "icon-size": [
+                    "interpolate",
+                    ["linear"],
+                    ["zoom"],
+                    12,
+                    ["*", 0.1, ["get", "scale"]],
+                    15,
+                    ["*", 0.38, ["get", "scale"]],
+                    17,
+                    ["*", 0.8, ["get", "scale"]],
+                  ],
+                },
+              });
+            } catch (err) {}
+            paintRoofs();
+          });
+        } catch (err) {
+          $("mapFallback").style.display = "grid";
+        }
+      }
+
+      function flyToCity() {
+        if (map)
+          map.flyTo({ center: [city().lon, city().lat], zoom: 15.6, pitch: 60, bearing: -17 });
+        paintTrees(); // regrow the canopy dots around the new city
+      }
+
+      /* ---- green space: canopy dots scattered around downtown ----
+   A fixed pool of 150 random spots per city; the tree slider shows the
+   first N, so dots appear/disappear steadily instead of reshuffling. */
+      // a small tree sprite drawn in code (trunk + leafy canopy) for the symbol layer
+      function makeTreeIcon() {
+        const s = 64,
+          cv = document.createElement("canvas");
+        cv.width = s;
+        cv.height = s;
+        const c = cv.getContext("2d");
+        c.fillStyle = "#7a5230";
+        c.fillRect(s / 2 - 3.5, s * 0.55, 7, s * 0.42);
+        c.fillStyle = "#3e8a3c";
+        [
+          [s / 2, s * 0.36, 17],
+          [s / 2 - 12, s * 0.47, 12],
+          [s / 2 + 12, s * 0.47, 12],
+          [s / 2, s * 0.54, 13],
+        ].forEach(([x, y, r]) => {
+          c.beginPath();
+          c.arc(x, y, r, 0, 7);
+          c.fill();
+        });
+        c.fillStyle = "#5aa554";
+        c.beginPath();
+        c.arc(s / 2 - 5, s * 0.36, 11, 0, 7);
+        c.fill();
+        c.beginPath();
+        c.arc(s / 2 + 7, s * 0.44, 8, 0, 7);
+        c.fill();
+        return c.getImageData(0, 0, s, s);
+      }
+
+      let treePool = [],
+        treePoolCity = null;
+      function ensureTreePool() {
+        if (treePoolCity === CONFIG.city) return;
+        treePoolCity = CONFIG.city;
+        treePool = [];
+        const R = 0.0055,
+          la = city().lat,
+          lo = city().lon;
+        const kx = Math.cos((la * Math.PI) / 180);
+        for (let i = 0; i < 150; i++) {
+          const a = Math.random() * 2 * Math.PI,
+            r = R * Math.sqrt(Math.random());
+          treePool.push({
+            c: [lo + (r * Math.cos(a)) / kx, la + r * Math.sin(a)],
+            kind: i % 4 === 0 ? "grass" : "tree", // every 4th spot is a lawn patch
+            scale: +(0.75 + Math.random() * 0.6).toFixed(2),
+          });
+        }
+      }
+      function makeTreeData() {
+        ensureTreePool();
+        const n = Math.round(state.trees * 1.5); // 0% -> nothing, 100% -> 150
+        return {
+          type: "FeatureCollection",
+          features: treePool
+            .slice(0, n)
+            .map((p) => ({
+              type: "Feature",
+              geometry: { type: "Point", coordinates: p.c },
+              properties: { kind: p.kind, scale: p.scale },
+            })),
+        };
+      }
+      function paintTrees() {
+        if (!mapReady) return;
+        const s = map.getSource("uhi-trees");
+        if (s) s.setData(makeTreeData());
+      }
+
+      /* ---- sun rays, drawn on a canvas overlay above the 3D map ----
+   Reflect-or-absorb comes straight from the model's cityAlbedo(),
+   so both sliders visibly change the rays' fate. */
+      const raysCanvas = $("rays"),
+        raysCtx = raysCanvas.getContext("2d");
+      let rays = [],
+        heats = [],
+        mists = [];
+      function sizeRays() {
+        raysCanvas.width = raysCanvas.clientWidth;
+        raysCanvas.height = raysCanvas.clientHeight;
+      }
+      window.addEventListener("resize", sizeRays);
+      sizeRays();
+
+      // where the sun sits on screen: it rises in the east (screen right — the map
+      // sits roughly north-up), arcs through the southern sky, and sets in the west
+      // (screen left). Noon height scales with sunStrength(), so winter arcs sit lower.
+      function sunPos() {
+        const w = raysCanvas.width,
+          h = raysCanvas.height;
+        const t = Math.min(1, Math.max(0, (state.hour - 5.5) / 14)); // 0 sunrise .. 1 sunset
+        const s = sunStrength(city().lat, CONFIG.month);
+        return { x: w * (0.94 - 0.88 * t), y: h * 0.32 - h * 0.26 * s * Math.sin(Math.PI * t), t };
+      }
+
+      function spawnRay() {
+        const w = raysCanvas.width,
+          h = raysCanvas.height;
+        const t = sunPos().t;
+        const slope = 2.4 * (2 * t - 1); // morning sun in the east -> rays travel westward
+        rays.push({
+          x: Math.random() * w - slope * 80,
+          y: -10,
+          vx: slope,
+          vy: 3.0,
+          hitY: h * (0.38 + 0.5 * Math.random()),
+          reflected: false,
+        });
+      }
+      // what's actually under this pixel? Ask the live map first (tree sprites,
+      // grass patches, 3D buildings); fall back to the model's surface mix.
+      function surfaceAtPoint(x, y) {
+        if (mapReady) {
+          try {
+            const f = map.queryRenderedFeatures([x, y], {
+              layers: ["uhi-trees", "uhi-grass", "uhi-3d-buildings"],
+            });
+            if (f.length) {
+              if (f[0].layer.id !== "uhi-3d-buildings") return "green";
+              return Math.random() < state.roofs / 100 ? "roofCool" : "roofStandard";
+            }
+          } catch (err) {}
+        }
+        const m = surfaceMix(state.trees),
+          u = Math.random();
+        if (u < m.green) return "green";
+        if (u < m.green + m.roof)
+          return Math.random() < state.roofs / 100 ? "roofCool" : "roofStandard";
+        return "pavement";
+      }
+
+      function stepRays() {
+        if (rays.length < 24 && sunUp()) {
+          spawnRay();
+          spawnRay();
+        }
+        rays = rays.filter((r) => {
+          r.x += r.vx;
+          r.y += r.vy;
+          if (r.y < -40 || r.x < -160 || r.x > raysCanvas.width + 160) return false;
+          if (!r.reflected && r.y >= r.hitY) {
+            const s = surfaceAtPoint(r.x, r.y);
+            if (Math.random() < ALBEDO[s]) {
+              // each surface uses its own albedo
+              r.reflected = true;
+              r.vy = -Math.abs(r.vy) * 0.95;
+              r.bright = s === "roofCool"; // cool roofs give the big bright bounce
+            } else if (s === "green") {
+              mists.push({ x: r.x, y: r.hitY, r: 4, life: 1 }); // evapotranspiration — no heat released
+              return false;
+            } else {
+              heats.push({ x: r.x, y: r.hitY, r: 3, life: 1 }); // dark roof / street -> heat
+              return false;
+            }
+          }
+          return true;
+        });
+        heats = heats.filter((hb) => {
+          hb.r += 0.7;
+          hb.life -= 0.035;
+          return hb.life > 0;
+        });
+        mists = mists.filter((mb) => {
+          mb.y -= 0.6;
+          mb.r += 0.4;
+          mb.life -= 0.03;
+          return mb.life > 0;
+        });
+      }
+      function drawRays() {
+        const c = raysCtx,
+          w = raysCanvas.width,
+          h = raysCanvas.height;
+        c.clearRect(0, 0, w, h);
+        rays.forEach((r) => {
+          c.strokeStyle = !r.reflected
+            ? "rgba(242,193,78,.9)"
+            : r.bright
+              ? "rgba(190,230,255,1)" // off a cool roof
+              : "rgba(143,211,244,.75)"; // ordinary bounce
+          c.lineWidth = r.reflected && r.bright ? 3.2 : 2.5;
+          c.lineCap = "round";
+          c.beginPath();
+          c.moveTo(r.x, r.y);
+          c.lineTo(r.x - r.vx * 5, r.y - r.vy * 5);
+          c.stroke();
+        });
+        heats.forEach((hb) => {
+          c.beginPath();
+          c.arc(hb.x, hb.y, hb.r, 0, 7);
+          c.fillStyle = `rgba(227,73,72,${hb.life * 0.5})`;
+          c.fill();
+        });
+        mists.forEach((mb) => {
+          c.beginPath();
+          c.arc(mb.x, mb.y, mb.r, 0, 7);
+          c.fillStyle = `rgba(87,196,163,${mb.life * 0.4})`;
+          c.fill();
+        });
+      }
+
+      // caption + heat/night overlays, refreshed every frame (cheap style writes)
+      function updateMapVisuals() {
+        $("mapCity").textContent = CONFIG.label || `${city().name} — ${MONTHS[CONFIG.month]}`;
+        $("mapClock").textContent = clockLabel(state.hour);
+        $("mapGreen").textContent = `Green space: ${state.trees}%`;
+        const daylight = sunUp() ? Math.sin((Math.PI * (state.hour - 5.5)) / 14) : 0;
+        $("heatOverlay").style.opacity = Math.min(0.75, dT() / 6) * (0.2 + 0.8 * daylight);
+        $("nightOverlay").style.opacity = sunUp() ? 0 : 0.45;
+      }
+
+      function clockLabel(h) {
+        const hh = Math.floor(h) % 24,
+          mm = Math.floor((h % 1) * 60);
+        const ap = hh < 12 ? "am" : "pm",
+          d = hh % 12 === 0 ? 12 : hh % 12;
+        return `${d}:${String(mm).padStart(2, "0")} ${ap}`;
+      }
+      function sunUp() {
+        return state.hour > 5.5 && state.hour < 19.5;
+      }
+
+      /* ==========================================================================
+   5. CHART
+   ========================================================================== */
+
+      const chart = $("chart"),
+        cctx = chart.getContext("2d");
+      const CW = chart.width,
+        CH = chart.height;
+      const PAD = { l: 52, r: 74, t: 18, b: 38 };
+
+      function tempRange() {
+        const b = base(),
+          d = heatIsland(0, 0, city().lat, CONFIG.month);
+        let lo = b - DAILY_SWING * 0.5 - 1.5;
+        let hi = b + DAILY_SWING * 0.5 + d + 1.5;
+        state.trials.forEach((t) => {
+          // visible trials stay on the chart
+          if (!t.visible) return;
+          lo = Math.min(lo, t.base - DAILY_SWING * 0.5 - 1.5);
+          hi = Math.max(hi, t.base + DAILY_SWING * 0.5 + t.dT + 1.5);
+        });
+        return { lo, hi };
+      }
+
+      function drawChart() {
+        cctx.clearRect(0, 0, CW, CH);
+        const { lo, hi } = tempRange();
+        const X = (h) => PAD.l + (CW - PAD.l - PAD.r) * (h / 24);
+        const Y = (t) => PAD.t + (CH - PAD.t - PAD.b) * (1 - (t - lo) / (hi - lo));
+
+        // grid + y axis
+        cctx.font = "12px Inter, Arial, sans-serif";
+        cctx.textBaseline = "middle";
+        const dlo = toUnit(lo),
+          dhi = toUnit(hi),
+          span = dhi - dlo;
+        const Yd = (t) => PAD.t + (CH - PAD.t - PAD.b) * (1 - (t - dlo) / (dhi - dlo));
+        const stepT = span > 36 ? 10 : span > 18 ? 5 : span > 9 ? 3 : 2;
+        for (let t = Math.ceil(dlo / stepT) * stepT; t <= dhi; t += stepT) {
+          const y = Yd(t);
+          cctx.strokeStyle = "#e6e4dc";
+          cctx.lineWidth = 1;
+          cctx.beginPath();
+          cctx.moveTo(PAD.l, y);
+          cctx.lineTo(CW - PAD.r, y);
+          cctx.stroke();
+          cctx.fillStyle = "#7a7873";
+          cctx.textAlign = "right";
+          cctx.fillText(t + "°", PAD.l - 10, y);
+        }
+        // x axis
+        cctx.textAlign = "center";
+        cctx.textBaseline = "top";
+        [0, 6, 12, 18, 24].forEach((h) => {
+          cctx.fillStyle = "#7a7873";
+          cctx.fillText(
+            h === 0
+              ? "12am"
+              : h === 12
+                ? "12pm"
+                : h === 24
+                  ? "12am"
+                  : h < 12
+                    ? h + "am"
+                    : h - 12 + "pm",
+            X(h),
+            CH - PAD.b + 10,
+          );
+        });
+
+        const b = base(),
+          d = dT();
+        const line = (fn, color, width, dash) => {
+          cctx.beginPath();
+          for (let h = 0; h <= state.hour + 0.001; h += 0.15) {
+            const x = X(h),
+              y = Y(fn(h));
+            h === 0 ? cctx.moveTo(x, y) : cctx.lineTo(x, y);
+          }
+          cctx.strokeStyle = color;
+          cctx.lineWidth = width;
+          cctx.setLineDash(dash || []);
+          cctx.lineJoin = "round";
+          cctx.lineCap = "round";
+          cctx.stroke();
+          cctx.setLineDash([]);
+        };
+
+        // saved trials, drawn behind the live run
+        state.trials.forEach((t) => {
+          if (!t.visible) return;
+          cctx.beginPath();
+          for (let h = 0; h <= 24; h += 0.15) {
+            const x = X(h),
+              y = Y(cityTempAt(h, t.base, t.dT));
+            h === 0 ? cctx.moveTo(x, y) : cctx.lineTo(x, y);
+          }
+          cctx.strokeStyle = t.color;
+          cctx.lineWidth = 2;
+          cctx.setLineDash([5, 5]);
+          cctx.stroke();
+          cctx.setLineDash([]);
+        });
+
+        line(
+          (h) => cityTempAt(h, b, d),
+          getComputedStyle(document.documentElement).getPropertyValue("--series-city").trim(),
+          2,
+        );
+
+        // direct label at the leading edge
+        if (state.hour > 0.6) {
+          const yc = Y(cityTempAt(state.hour, b, d)),
+            x = X(state.hour);
+          cctx.textAlign = "left";
+          cctx.textBaseline = "middle";
+          cctx.font = "600 12px Inter, Arial, sans-serif";
+          cctx.beginPath();
+          cctx.arc(x, yc, 4, 0, 7);
+          cctx.fillStyle = getComputedStyle(document.documentElement)
+            .getPropertyValue("--series-city")
+            .trim();
+          cctx.fill();
+          cctx.strokeStyle = "#fcfcfb";
+          cctx.lineWidth = 2;
+          cctx.stroke();
+          cctx.fillStyle = "#52514e";
+          cctx.fillText("City", x + 9, yc);
+        }
+      }
+
+      /* ---- chart tooltip: hover or tap a curve to see whose it is ---- */
+      function chartCurves() {
+        const list = [];
+        if (state.hour > 0.05) {
+          const b = base(),
+            d = dT();
+          list.push({
+            name: `This run — ${city().name}, ${MONTHS[CONFIG.month]}`,
+            detail: `${state.roofs}% cool roofs, ${state.trees}% green space`,
+            maxH: state.hour,
+            f: (h) => cityTempAt(h, b, d),
+          });
+        }
+        state.trials.forEach((t) => {
+          if (!t.visible) return;
+          list.push({
+            name: `Trial ${t.id} — ${t.city}, ${t.month}`,
+            detail: `${t.roofs}% cool roofs, ${t.trees}% green space`,
+            maxH: 24,
+            f: (h) => cityTempAt(h, t.base, t.dT),
+          });
+        });
+        return list;
+      }
+
+      function chartTipAt(e) {
+        const tip = $("chartTip");
+        const rect = chart.getBoundingClientRect();
+        const cx = (e.clientX - rect.left) * (CW / rect.width);
+        const cy = (e.clientY - rect.top) * (CH / rect.height);
+        const h = ((cx - PAD.l) / (CW - PAD.l - PAD.r)) * 24;
+        if (h < 0 || h > 24) {
+          tip.hidden = true;
+          return;
+        }
+        const { lo, hi } = tempRange();
+        const Y = (t) => PAD.t + (CH - PAD.t - PAD.b) * (1 - (t - lo) / (hi - lo));
+        let best = null;
+        chartCurves().forEach((c) => {
+          if (h > c.maxH) return;
+          const dy = Math.abs(Y(c.f(h)) - cy);
+          if (dy < 16 && (!best || dy < best.dy)) best = { c, dy };
+        });
+        if (!best) {
+          tip.hidden = true;
+          return;
+        }
+        tip.innerHTML =
+          `<b>${esc(best.c.name)}</b>${esc(best.c.detail)}<br>` +
+          `${clockLabel(h)} &middot; ${toUnit(best.c.f(h)).toFixed(1)}${unitLbl()}`;
+        tip.hidden = false;
+        const wrap = $("chartwrap").getBoundingClientRect();
+        tip.style.left = Math.min(e.clientX - wrap.left + 14, wrap.width - 200) + "px";
+        tip.style.top = Math.max(4, e.clientY - wrap.top - 48) + "px";
+      }
+      chart.addEventListener("mousemove", chartTipAt);
+      chart.addEventListener("click", chartTipAt);
+      chart.addEventListener("mouseleave", () => {
+        $("chartTip").hidden = true;
+      });
+
+      /* ==========================================================================
+   6. LOOP + UI
+   ========================================================================== */
+
+      // mean city temperature across daylight hours (5:30am–7:30pm) for the current settings
+      function avgDaytimeTemp() {
+        const b = base(),
+          d = dT();
+        let s = 0,
+          n = 0;
+        for (let h = 5.5; h <= 19.5; h += 0.25) {
+          s += cityTempAt(h, b, d);
+          n++;
+        }
+        return s / n;
+      }
+
+      function readouts() {
+        const b = base(),
+          d = dT();
+        const tc = cityTempAt(state.hour, b, d),
+          tr = ruralTempAt(state.hour, b);
+        $("tCity").textContent = toUnit(tc).toFixed(1) + unitLbl();
+        $("tDayAvg").textContent = toUnit(avgDaytimeTemp()).toFixed(1) + unitLbl();
+        $("tDiff").textContent = "+" + toUnitD(tc - tr).toFixed(1) + unitLbl();
+        $("dataNote").textContent =
+          `Baseline for ${city().name} in ${MONTHS[CONFIG.month]}: ${toUnit(b).toFixed(1)}${unitLbl()} monthly average. ` +
+          `Peak heat-island effect with these settings: +${toUnitD(d).toFixed(1)}${unitLbl()}.`;
+      }
+
+      function frame(ts) {
+        const dt = state.lastFrame ? (ts - state.lastFrame) / 1000 : 0;
+        state.lastFrame = ts;
+        if (state.running) {
+          state.hour += dt * (24 / CONFIG.dayLengthSeconds);
+          if (state.hour >= 24) {
+            state.hour = 24;
+            state.running = false;
+            $("runBtn").textContent = "Run model";
+            saveTrial(); // every finished day is kept as a trial
+          }
+          stepRays(); // rays freeze whenever the model pauses
+        }
+        updateMapVisuals();
+        drawRays();
+        drawChart();
+        readouts();
+        requestAnimationFrame(frame);
+      }
+
+      function rebuild() {
+        flyToCity();
+        $("cityPill").textContent = city().name;
+        $("monthPill").textContent = MONTHS[CONFIG.month];
+        renderConfig();
+        renderClimTable();
+        renderMath();
+      }
+
+      function reset() {
+        state.hour = 0;
+        state.running = false;
+        rays = [];
+        heats = [];
+        mists = [];
+        drawRays();
+        $("runBtn").textContent = "Run model";
+      }
+
+      /* ---- controls ---- */
+      $("roofs").oninput = (e) => {
+        state.roofs = +e.target.value;
+        $("roofsV").textContent = state.roofs;
+        paintRoofs();
+        renderConfig();
+        logEvent("changeReflectiveRoofs", { percent: state.roofs });
+      };
+      $("trees").oninput = (e) => {
+        state.trees = +e.target.value;
+        $("treesV").textContent = state.trees;
+        paintTrees();
+        renderConfig();
+        logEvent("changeTreeCover", { percent: state.trees });
+      };
+      $("runBtn").onclick = () => {
+        if (state.hour >= 24) reset();
+        state.running = !state.running;
+        $("runBtn").textContent = state.running ? "Pause" : "Run model";
+        if (state.running)
+          logEvent("runModel", {
+            reflectiveRoofs: state.roofs,
+            treeCover: state.trees,
+            city: CONFIG.city,
+            month: MONTHS[CONFIG.month],
+          });
+      };
+      $("resetBtn").onclick = () => {
+        reset();
+        logEvent("resetModel", {});
+      };
+      /* ---- trials: every completed run is saved and can be toggled on the chart ---- */
+      function saveTrial() {
+        const t = {
+          id: state.nextTrialId++,
+          base: base(),
+          dT: dT(),
+          roofs: state.roofs,
+          trees: state.trees,
+          city: city().name,
+          month: MONTHS[CONFIG.month],
+          color: TRIAL_COLORS[(state.nextTrialId - 2) % TRIAL_COLORS.length],
+          visible: true,
+        };
+        state.trials.push(t);
+        renderTrials();
+        logEvent("trialSaved", {
+          trial: t.id,
+          reflectiveRoofs: t.roofs,
+          treeCover: t.trees,
+          city: CONFIG.city,
+          month: t.month,
+        });
+      }
+
+      function renderTrials() {
+        $("trialSummary").textContent = `Trials (${state.trials.length})`;
+        $("trialEmpty").style.display = state.trials.length ? "none" : "block";
+        $("trialList").innerHTML = state.trials
+          .map(
+            (t) => `
+    <div class="trialrow">
+      <input type="checkbox" id="tr${t.id}" data-id="${t.id}" ${t.visible ? "checked" : ""}>
+      <i class="sw" style="background:${t.color}"></i>
+      <label for="tr${t.id}">Trial ${t.id} &mdash; ${t.roofs}% roofs, ${t.trees}% trees
+        &middot; ${t.city}, ${t.month}</label>
+      <button class="del" data-del="${t.id}" title="Delete this trial" type="button">&#10005;</button>
+    </div>`,
+          )
+          .join("");
+      }
+
+      $("trialList").onchange = (e) => {
+        const t = state.trials.find((x) => x.id === +e.target.dataset.id);
+        if (t) {
+          t.visible = e.target.checked;
+          logEvent("trialToggled", { trial: t.id, visible: t.visible });
+        }
+      };
+      $("trialList").onclick = (e) => {
+        if (e.target.dataset.del) {
+          const id = +e.target.dataset.del;
+          state.trials = state.trials.filter((x) => x.id !== id);
+          renderTrials();
+          logEvent("trialDeleted", { trial: id });
+        }
+      };
+      $("trialAll").onclick = () => {
+        state.trials.forEach((t) => (t.visible = true));
+        renderTrials();
+      };
+      $("trialNone").onclick = () => {
+        state.trials.forEach((t) => (t.visible = false));
+        renderTrials();
+      };
+      $("trialClear").onclick = () => {
+        state.trials = [];
+        renderTrials();
+        logEvent("trialsCleared", {});
+      };
+
+      /* ---- °C / °F toggle ---- */
+      function setUnit(u) {
+        if (CONFIG.unit === u) return;
+        CONFIG.unit = u;
+        syncUnitButtons();
+        renderConfig();
+        renderClimTable();
+        logEvent("changeTemperatureUnit", { unit: u });
+      }
+      function syncUnitButtons() {
+        $("unitC").classList.toggle("on", CONFIG.unit === "C");
+        $("unitF").classList.toggle("on", CONFIG.unit === "F");
+      }
+      $("unitC").onclick = () => setUnit("C");
+      $("unitF").onclick = () => setUnit("F");
+
+      /* ---- author panel ---- */
+      const cityOpts = document.createElement("datalist");
+      cityOpts.id = "cityOpts";
+      Object.values(CITY_DATA).forEach((v) => {
+        const o = document.createElement("option");
+        o.value = v.name;
+        cityOpts.appendChild(o);
+      });
+      document.body.appendChild(cityOpts);
+      MONTHS.forEach((m, i) => {
+        $("monthSel").insertAdjacentHTML("beforeend", `<option value="${i}">${m}</option>`);
+      });
+
+      /* ---- location search: any place on Earth becomes a "city" entry ----
+   Geocoding: Nominatim (OpenStreetMap). Climate: Open-Meteo ERA5 archive,
+   10 years of daily means averaged into monthly normals. Both free, no key. */
+      const esc = (s) =>
+        String(s).replace(
+          /[&<>"]/g,
+          (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[ch],
+        );
+
+      function locStatus(msg) {
+        const el = $("locResults");
+        el.style.display = "block";
+        el.textContent = msg;
+      }
+      function fetchFail(err) {
+        locStatus("Couldn't fetch location or climate data (network?). Keeping the current city.");
+      }
+
+      async function geocode(q) {
+        const url =
+          "https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&q=" +
+          encodeURIComponent(q);
+        const res = await fetch(url, { headers: { "Accept-Language": "en" } });
+        if (!res.ok) throw new Error("geocoder " + res.status);
+        return res.json();
+      }
+
+      async function fetchMonthlyNormals(lat, lon) {
+        const url =
+          `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}` +
+          `&start_date=2014-01-01&end_date=2023-12-31` +
+          `&daily=temperature_2m_mean&timezone=UTC`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("climate " + res.status);
+        const d = await res.json();
+        const sums = Array(12).fill(0),
+          counts = Array(12).fill(0);
+        d.daily.time.forEach((t, i) => {
+          const v = d.daily.temperature_2m_mean[i];
+          if (v === null || v === undefined) return;
+          const m = +t.slice(5, 7) - 1;
+          sums[m] += v;
+          counts[m]++;
+        });
+        return sums.map((s, i) => +(s / Math.max(1, counts[i])).toFixed(1));
+      }
+
+      let customCount = 0;
+      async function applyLocation(name, lat, lon) {
+        lat = +lat;
+        lon = +lon;
+        locStatus(`Fetching 10 years of temperature data for ${name}\u2026`);
+        const temps = await fetchMonthlyNormals(lat, lon);
+        const key = "custom-" + ++customCount;
+        CITY_DATA[key] = {
+          name,
+          lat: Math.round(lat * 1e4) / 1e4,
+          lon: Math.round(lon * 1e4) / 1e4,
+          temps,
+          custom: true,
+        };
+        CONFIG.city = key;
+        rebuild();
+        reset();
+        $("locIn").value = name;
+        locStatus(
+          `Using ${name} \u2014 monthly averages computed from Open-Meteo (ERA5, 2014\u20132023).`,
+        );
+        logEvent("authorSetLocation", { name, lat, lon });
+      }
+
+      const shortName = (h) => h.display_name.split(",").slice(0, 2).join(",").trim();
+
+      async function findLocation() {
+        const q = $("locIn").value.trim();
+        if (!q) return;
+        // exact match on a known name (built-in or already fetched): no network needed
+        const known = Object.entries(CITY_DATA).find(
+          ([k, v]) => v.name.toLowerCase() === q.toLowerCase(),
+        );
+        if (known) {
+          CONFIG.city = known[0];
+          rebuild();
+          reset();
+          locStatus(`Using ${known[1].name}${known[1].custom ? "" : " (built-in data)"}.`);
+          return;
+        }
+        try {
+          locStatus("Searching\u2026");
+          const hits = await geocode(q);
+          if (!hits.length) {
+            locStatus(`No results for "${q}". Try adding a state or country.`);
+            return;
+          }
+          if (hits.length === 1) {
+            await applyLocation(shortName(hits[0]), hits[0].lat, hits[0].lon);
+            return;
+          }
+          const el = $("locResults");
+          el.style.display = "block";
+          el.innerHTML =
+            "Did you mean:<br>" +
+            hits
+              .map(
+                (h, i) =>
+                  `<button type="button" class="locpick" data-i="${i}" style="margin:4px 6px 0 0">` +
+                  esc(h.display_name.split(",").slice(0, 3).join(",")) +
+                  `</button>`,
+              )
+              .join("");
+          el.querySelectorAll(".locpick").forEach((b) => {
+            b.onclick = () => {
+              const h = hits[+b.dataset.i];
+              applyLocation(shortName(h), h.lat, h.lon).catch(fetchFail);
+            };
+          });
+        } catch (err) {
+          fetchFail(err);
+        }
+      }
+      $("locBtn").onclick = () => {
+        findLocation();
+      };
+      $("locIn").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          findLocation();
+        }
+      });
+
+      function syncAuthorFields() {
+        $("locIn").value = city().name;
+        $("monthSel").value = CONFIG.month;
+        $("labelIn").value = CONFIG.label;
+      }
+
+      $("applyBtn").onclick = () => {
+        CONFIG.month = +$("monthSel").value;
+        CONFIG.label = $("labelIn").value.trim();
+        rebuild();
+        reset(); // saved trials persist so students can compare across cities
+        logEvent("authorAppliedConfig", { city: CONFIG.city, month: MONTHS[CONFIG.month] });
+      };
+      $("copyBtn").onclick = () => {
+        navigator.clipboard?.writeText(JSON.stringify(CONFIG, null, 2));
+        $("copyBtn").textContent = "Copied";
+        setTimeout(() => ($("copyBtn").textContent = "Copy this config"), 1400);
+      };
+      $("linkBtn").onclick = () => {
+        const p = new URLSearchParams({
+          month: CONFIG.month,
+          label: CONFIG.label,
+          unit: CONFIG.unit,
+        });
+        const cc = city();
+        if (cc.custom) p.set("loc", `${cc.name}@${cc.lat},${cc.lon}`);
+        else p.set("city", CONFIG.city);
+        navigator.clipboard?.writeText(location.origin + location.pathname + "?" + p);
+        $("linkBtn").textContent = "Copied";
+        setTimeout(() => ($("linkBtn").textContent = "Copy a shareable link"), 1400);
+      };
+
+      function renderConfig() {
+        $("configOut").textContent = JSON.stringify(
+          {
+            ...CONFIG,
+            _studentSettings: {
+              reflectiveRoofsPercent: state.roofs,
+              treeCoverPercent: state.trees,
+            },
+          },
+          null,
+          2,
+        );
+      }
+
+      function renderClimTable() {
+        const c = city(),
+          tb = $("climTable").querySelector("tbody");
+        $("climTempTh").textContent = `Avg temp (${unitLbl()})`;
+        $("climUhiTh").textContent = `Heat island (${unitLbl()})`;
+        tb.innerHTML = c.temps
+          .map((t, i) => {
+            const s = sunStrength(c.lat, i);
+            const d = heatIsland(state.roofs, state.trees, c.lat, i);
+            return `<tr${i === CONFIG.month ? ' style="background:var(--surface-2)"' : ""}>
+      <td>${MONTHS[i]}</td><td class="num">${toUnit(t).toFixed(1)}</td>
+      <td class="num">${s.toFixed(2)}</td><td class="num">+${toUnitD(d).toFixed(1)}</td></tr>`;
+          })
+          .join("");
+      }
+
+      function renderMath() {
+        const m = surfaceMix(state.trees),
+          a = cityAlbedo(state.roofs, state.trees);
+        const s = sunStrength(city().lat, CONFIG.month);
+        $("mathOut").textContent =
+          `Surface mix        roofs ${(m.roof * 100).toFixed(0)}%  pavement ${(m.pave * 100).toFixed(0)}%  green ${(m.green * 100).toFixed(0)}%
+Albedo per surface roof ${(ALBEDO.roofStandard + ((ALBEDO.roofCool - ALBEDO.roofStandard) * state.roofs) / 100).toFixed(2)}  pavement ${ALBEDO.pavement}  green ${ALBEDO.green}
+City albedo        ${a.toFixed(3)}          (share of sunlight reflected away)
+Absorbed           ${(1 - a).toFixed(3)}
+Sun strength       ${s.toFixed(3)}          (latitude ${city().lat}°, ${MONTHS[CONFIG.month]})
+
+heat island  =  max(0, ${HEAT_GAIN} x absorbed  -  ${TREE_COOL} x green)  x  sun strength
+             =  max(0, ${(HEAT_GAIN * (1 - a)).toFixed(2)} - ${(TREE_COOL * m.green).toFixed(2)}) x ${s.toFixed(3)}
+             =  +${dT().toFixed(2)} °C
+
+NOTE: these coefficients are tuned so the effect lands in the 1-6 °C range that
+the urban-heat-island literature reports. They are NOT a validated physical model.
+Any real classroom use needs a science review of these two numbers.`;
+      }
+
+      /* ---- WISE-style API surface ---- */
+      const log = [];
+      function logEvent(name, data) {
+        const e = { event: name, ...data, t: new Date().toISOString().slice(11, 19) };
+        log.unshift(e);
+        $("logOut").textContent =
+          log
+            .slice(0, 12)
+            .map((x) => JSON.stringify(x))
+            .join("\n") || "(student actions will appear here)";
+        // this is where the Snap! version calls wiseAPI.save(...)
+        try {
+          window.parent.postMessage({ source: "uhi-model", ...e }, "*");
+        } catch (err) {}
+      }
+
+      window.UHI = {
+        setConfig(patch) {
+          Object.assign(CONFIG, patch);
+          syncAuthorFields();
+          rebuild();
+          reset();
+        },
+        getState() {
+          return {
+            config: CONFIG,
+            roofs: state.roofs,
+            trees: state.trees,
+            heatIsland: +dT().toFixed(2),
+          };
+        },
+        cities: Object.keys(CITY_DATA),
+      };
+
+      $("apiOut").textContent =
+        `// an author (or the WISE authoring tool) sets the whole model in one call
+UHI.setConfig({ city: "oakland", month: 8, unit: "F",
+                label: "Our neighborhood in September" })
+
+// or by URL, which is all a WISE step component would need to pass through
+uhi-city-model.html?city=richmond&month=6&unit=F
+
+// student actions come back out as events (shown live below)
+{ "event": "changeReflectiveRoofs", "percent": 60 }
+{ "event": "runModel", "reflectiveRoofs": 60, "treeCover": 40, "city": "oakland" }`;
+
+      /* ---- URL parameters ---- */
+      let PENDING_LOC = null;
+      (function readURL() {
+        const p = new URLSearchParams(location.search);
+        if (p.get("city") && CITY_DATA[p.get("city")]) CONFIG.city = p.get("city");
+        if (p.get("loc")) {
+          const m = p.get("loc").match(/^(.+)@(-?[\d.]+),(-?[\d.]+)$/);
+          if (m) PENDING_LOC = { name: m[1], lat: +m[2], lon: +m[3] };
+        }
+        if (p.get("month") !== null && p.get("month") !== "") CONFIG.month = +p.get("month");
+        if (p.get("label")) CONFIG.label = p.get("label");
+        if (p.get("unit") === "C" || p.get("unit") === "F") CONFIG.unit = p.get("unit");
+      })();
+
+      /* ---- go ---- */
+      state.roofs = CONFIG.startRoofs;
+      state.trees = CONFIG.startTrees;
+      $("roofs").value = state.roofs;
+      $("roofsV").textContent = state.roofs;
+      $("trees").value = state.trees;
+      $("treesV").textContent = state.trees;
+      syncAuthorFields();
+      syncUnitButtons();
+      renderTrials();
+      initMap();
+      rebuild();
+      if (PENDING_LOC)
+        applyLocation(PENDING_LOC.name, PENDING_LOC.lat, PENDING_LOC.lon).catch(fetchFail);
+      requestAnimationFrame(frame);
+    </script>
+  </body>
+</html>
