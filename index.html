@@ -357,30 +357,6 @@
         flex-wrap: wrap;
         margin-top: 14px;
       }
-      .tiles {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 10px;
-        margin-bottom: 14px;
-      }
-      .tile {
-        background: var(--surface-2);
-        border-radius: 8px;
-        padding: 10px 12px;
-      }
-      .tile .k {
-        font-size: 11.5px;
-        color: var(--text-muted);
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-      }
-      .tile .v {
-        font-size: 22px;
-        font-weight: 600;
-        font-variant-numeric: tabular-nums;
-        letter-spacing: -0.5px;
-        margin-top: 2px;
-      }
       .legend {
         display: flex;
         gap: 16px;
@@ -437,6 +413,7 @@
         text-transform: uppercase;
         letter-spacing: 0.05em;
       }
+      th.num,
       td.num {
         text-align: right;
         font-variant-numeric: tabular-nums;
@@ -500,22 +477,13 @@
             </div>
           </div>
           <div class="legend">
-            <span><i class="swatch" style="background: #f2c14e"></i>Sunlight in</span>
+            <span><i class="swatch" style="background: #f59e0b"></i>Sunlight in</span>
+            <span><i class="swatch" style="background: #2589f5"></i>Sunlight reflected</span>
+            <span><i class="swatch" style="background: #e34948"></i>Heat absorbed</span>
+            <span><i class="swatch" style="background: #57c4a3"></i>Trees &amp; green space</span>
             <span
-              ><i class="swatch" style="background: #bee6ff"></i>Reflected &mdash; cool roofs bounce
-              the most</span
-            >
-            <span
-              ><i class="swatch" style="background: #e34948"></i>Dark roofs &amp; streets absorb
-              &rarr; heat</span
-            >
-            <span
-              ><i class="swatch" style="background: #57c4a3"></i>Trees &amp; grass absorb &rarr;
-              water evaporates, stays cool</span
-            >
-            <span
-              ><i class="swatch" style="background: #f2f4f6; border: 1px solid #dcdad2"></i>Building
-              color &mdash; cool-roof %</span
+              ><i class="swatch" style="background: #ffffff; border: 1px solid #dcdad2"></i
+              >Reflective roofs</span
             >
           </div>
 
@@ -528,9 +496,9 @@
             </div>
             <div class="ctl">
               <label for="trees"
-                >Tree &amp; green space cover <b><span id="treesV">15</span>%</b></label
+                >Tree &amp; green space cover <b><span id="treesV">0</span>%</b></label
               >
-              <input type="range" id="trees" min="0" max="100" value="15" step="5" />
+              <input type="range" id="trees" min="0" max="100" value="0" step="5" />
             </div>
           </div>
 
@@ -554,27 +522,14 @@
               ><button id="unitF" class="on" type="button">&deg;F</button>
             </div>
           </div>
-          <div class="tiles">
-            <div class="tile">
-              <div class="k">City right now</div>
-              <div class="v" id="tCity" style="color: var(--series-city)">—</div>
-            </div>
-            <div class="tile">
-              <div class="k">Avg daytime temp</div>
-              <div class="v" id="tDayAvg">—</div>
-            </div>
-            <div class="tile">
-              <div class="k">Heat island</div>
-              <div class="v" id="tDiff">—</div>
-            </div>
-          </div>
           <div id="chartwrap" style="position: relative">
             <canvas id="chart" width="720" height="380"></canvas>
             <div id="chartTip" hidden></div>
           </div>
           <div class="legend">
             <span
-              ><i class="swatch" style="background: var(--series-city)"></i>City (current run)</span
+              ><i class="swatch" id="runSwatch" style="background: #2a78d6"></i>City (current
+              run)</span
             >
             <span
               ><i class="swatch" style="background: #8d8a80"></i>Saved trials (dashed) &mdash; hover
@@ -596,19 +551,25 @@
               </div>
             </div>
           </details>
-          <div class="note" id="dataNote"></div>
+          <table id="trialTable">
+            <thead>
+              <tr>
+                <th>Trial</th>
+                <th class="num">Reflective roofs</th>
+                <th class="num">Tree &amp; green space</th>
+                <th class="num">Avg. daytime temp</th>
+                <th class="num">High daytime temp</th>
+              </tr>
+            </thead>
+            <tbody id="trialTableBody"></tbody>
+          </table>
+          <!-- <div class="note" id="dataNote"></div> -->
         </section>
       </div>
 
       <!-- ============ AUTHOR / TEACHER PANEL ============ -->
       <section class="card">
         <h2>Author panel — localize this model for your school</h2>
-        <p class="note hookmark" style="margin-top: 0">
-          This is the &ldquo;hook&rdquo; the meeting asked about. Nothing below is hard-coded in the
-          simulation &mdash; a teacher or unit author changes these values and the model, the
-          picture, and the temperature data all follow. In WISE this panel would be the step&rsquo;s
-          authoring form; the simulation only ever reads a config object.
-        </p>
 
         <div class="authorgrid">
           <label class="f" style="grid-column: 1/-1"
@@ -773,7 +734,7 @@
         month: 6, // 0 = January
         label: "", // optional caption shown to students
         startRoofs: 0, // starting slider values
-        startTrees: 15,
+        startTrees: 0,
         unit: "F", // "C" or "F" — what students see; the model itself runs in °C
         dayLengthSeconds: 18, // how long one simulated day takes to play
       };
@@ -841,7 +802,7 @@
    3. STATE
    ========================================================================== */
 
-      const TRIAL_COLORS = ["#8d8a80", "#9b6dc8", "#2f9e8f", "#c95d8f", "#96892f", "#b06c49"];
+      const TRIAL_COLORS = ["#2a78d6", "#9b6dc8", "#2f9e8f", "#c95d8f", "#96892f", "#b06c49"];
 
       let state = {
         roofs: CONFIG.startRoofs,
@@ -872,22 +833,293 @@
       let map = null,
         mapReady = false;
 
-      // building color follows the cool-roof slider: dark roofs -> reflective white
-      function roofColor() {
-        const t = state.roofs / 100;
-        const ch = (a, b) => Math.round(a + (b - a) * t);
-        return `rgb(${ch(146, 242)}, ${ch(150, 244)}, ${ch(158, 246)})`;
+      const BUILDING_WALL = "#dad6ce";
+      const ROOF_DARK = "#5c6068";
+      const ROOF_LIGHT = "#ffffff";
+
+      // 2D spatial integer hash (0..99) from each individual building's centroid
+      function hashCoords(lon, lat) {
+        let h =
+          (Math.imul(Math.round(lon * 1e6), 374761393) +
+            Math.imul(Math.round(lat * 1e6), 668265263)) |
+          0;
+        h = Math.imul(h ^ (h >>> 13), 1274126177);
+        return ((h ^ (h >>> 16)) >>> 0) % 100;
+      }
+
+      function ringBBoxAndCenter(ring) {
+        let minX = Infinity,
+          minY = Infinity,
+          maxX = -Infinity,
+          maxY = -Infinity,
+          sx = 0,
+          sy = 0;
+        const n = ring.length || 1;
+        for (let i = 0; i < n; i++) {
+          const x = ring[i][0],
+            y = ring[i][1];
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+          sx += x;
+          sy += y;
+        }
+        return { minX, minY, maxX, maxY, cx: sx / n, cy: sy / n };
+      }
+
+      // OpenFreeMap merges same-height buildings in each vector tile into a single MultiPolygon.
+      // Explode them into individual Polygon features so every building gets its own roof bucket.
+      let roofRebuildTimer = null;
+      function scheduleRoofRebuild() {
+        if (roofRebuildTimer) return;
+        roofRebuildTimer = setTimeout(() => {
+          roofRebuildTimer = null;
+          rebuildRoofsGeoJSON();
+        }, 60);
+      }
+
+      let buildingBoxes = [];
+      let roadSegments = [];
+      let baseSceneFeatures = [];
+
+      function shrinkRing(ring, cx, cy, factor) {
+        return ring.map(([x, y]) => [cx + (x - cx) * factor, cy + (y - cy) * factor]);
+      }
+
+      function makeCirclePoly(lon, lat, radiusMeters, kx, sides = 10) {
+        const dLat = radiusMeters / 111320;
+        const dLon = dLat / kx;
+        const ring = [];
+        for (let i = 0; i <= sides; i++) {
+          const a = (i / sides) * Math.PI * 2;
+          ring.push([lon + Math.cos(a) * dLon, lat + Math.sin(a) * dLat]);
+        }
+        return [ring];
+      }
+
+      function rebuildRoofsGeoJSON() {
+        if (!mapReady) return;
+        const src = map.getSource("uhi-roofs-src");
+        if (!src) return;
+        let raw = [];
+        try {
+          raw = map.querySourceFeatures("openmaptiles", {
+            sourceLayer: "building",
+            filter: ["!", ["has", "hide_3d"]],
+          });
+        } catch (err) {
+          return;
+        }
+        let rawRoads = [];
+        try {
+          rawRoads = map.querySourceFeatures("openmaptiles", {
+            sourceLayer: "transportation",
+          });
+        } catch (err) {}
+        const rSegs = [];
+        for (let i = 0; i < rawRoads.length; i++) {
+          const g = rawRoads[i].geometry;
+          if (!g) continue;
+          const lines =
+            g.type === "MultiLineString"
+              ? g.coordinates
+              : g.type === "LineString"
+                ? [g.coordinates]
+                : [];
+          for (let l = 0; l < lines.length; l++) {
+            const pts = lines[l];
+            for (let k = 0; k < pts.length - 1; k++) {
+              const x1 = pts[k][0],
+                y1 = pts[k][1],
+                x2 = pts[k + 1][0],
+                y2 = pts[k + 1][1];
+              rSegs.push({
+                x1,
+                y1,
+                x2,
+                y2,
+                minX: Math.min(x1, x2),
+                maxX: Math.max(x1, x2),
+                minY: Math.min(y1, y2),
+                maxY: Math.max(y1, y2),
+              });
+            }
+          }
+        }
+        if (rSegs.length) roadSegments = rSegs;
+        const seen = new Set();
+        const features = [];
+        const boxes = [];
+        for (let i = 0; i < raw.length; i++) {
+          const f = raw[i];
+          if (!f.geometry || f.properties?.hide_3d) continue;
+          const h = +(f.properties?.render_height ?? 12);
+          const minH = +(f.properties?.render_min_height ?? 0);
+          const roofBase = Math.max(minH, h - 0.8);
+          const polyList =
+            f.geometry.type === "MultiPolygon"
+              ? f.geometry.coordinates
+              : f.geometry.type === "Polygon"
+                ? [f.geometry.coordinates]
+                : [];
+          for (let p = 0; p < polyList.length; p++) {
+            const rings = polyList[p];
+            if (!rings || !rings.length) continue;
+            let currentPoly = null;
+            let outerBox = null;
+            for (let r = 0; r < rings.length; r++) {
+              const ring = rings[r];
+              if (!ring || ring.length < 3) continue;
+              const box = ringBBoxAndCenter(ring);
+              const pt = ring[0];
+              const isHole =
+                outerBox &&
+                pt[0] >= outerBox.minX &&
+                pt[0] <= outerBox.maxX &&
+                pt[1] >= outerBox.minY &&
+                pt[1] <= outerBox.maxY;
+              if (isHole && currentPoly) {
+                currentPoly.push(ring);
+              } else {
+                currentPoly = [ring];
+                outerBox = box;
+                const key = `${Math.round(box.cx * 1e5)},${Math.round(box.cy * 1e5)},${h}`;
+                if (!seen.has(key)) {
+                  seen.add(key);
+                  const bucket = hashCoords(box.cx, box.cy);
+                  const greenBucket = hashCoords(box.cy + 0.123, box.cx - 0.456);
+                  // Building wall feature
+                  features.push({
+                    type: "Feature",
+                    geometry: { type: "Polygon", coordinates: currentPoly },
+                    properties: {
+                      kind: "wall",
+                      base_h: minH,
+                      top_h: roofBase,
+                      bucket,
+                      treeOrder: -1,
+                    },
+                  });
+                  // Building roof cap feature
+                  features.push({
+                    type: "Feature",
+                    geometry: { type: "Polygon", coordinates: currentPoly },
+                    properties: {
+                      kind: "roof",
+                      base_h: roofBase,
+                      top_h: h,
+                      bucket,
+                      treeOrder: -1,
+                    },
+                  });
+                  boxes.push({
+                    minX: box.minX,
+                    minY: box.minY,
+                    maxX: box.maxX,
+                    maxY: box.maxY,
+                    cx: box.cx,
+                    cy: box.cy,
+                    h,
+                  });
+                  // Inset rooftop garden patch sitting physically on top of the flat roof
+                  if (
+                    currentPoly.length === 1 &&
+                    box.maxX - box.minX > 0.00012 &&
+                    greenBucket < 20
+                  ) {
+                    features.push({
+                      type: "Feature",
+                      geometry: {
+                        type: "Polygon",
+                        coordinates: [shrinkRing(ring, box.cx, box.cy, 0.68)],
+                      },
+                      properties: {
+                        kind: "garden",
+                        base_h: h,
+                        top_h: h + 0.3,
+                        bucket,
+                        treeOrder: Math.round((greenBucket / 20) * 100),
+                      },
+                    });
+                  }
+                }
+              }
+            }
+          }
+        }
+        baseSceneFeatures = features;
+        if (boxes.length) {
+          const prevLen = buildingBoxes.length;
+          buildingBoxes = boxes;
+          if (
+            !treePoolBuiltWithBuildings ||
+            (!treePoolBuiltWithRoads && roadSegments.length > 0) ||
+            Math.abs(boxes.length - prevLen) > 15
+          ) {
+            treePoolCity = null;
+          }
+        }
+        ensureTreePool();
+        src.setData({
+          type: "FeatureCollection",
+          features: baseSceneFeatures.concat(tree3DFeatures),
+        });
+        paintTrees();
+      }
+
+      function isCoolRoofFeature(feat) {
+        if (state.roofs <= 0) return false;
+        if (state.roofs >= 100) return true;
+        const bucket = feat?.properties?.bucket;
+        if (typeof bucket === "number") return bucket < state.roofs;
+        return Math.random() < state.roofs / 100;
+      }
+
+      function sceneColorExpr() {
+        const roofExpr =
+          state.roofs <= 0
+            ? ROOF_DARK
+            : state.roofs >= 100
+              ? ROOF_LIGHT
+              : ["case", ["<", ["get", "bucket"], state.roofs], ROOF_LIGHT, ROOF_DARK];
+        const wallExpr = [
+          "match",
+          ["%", ["get", "bucket"], 3],
+          0,
+          "#ded9ce",
+          1,
+          "#d0c9bc",
+          "#c3bba9",
+        ];
+        return [
+          "match",
+          ["get", "kind"],
+          "wall",
+          wallExpr,
+          "roof",
+          roofExpr,
+          "garden",
+          "#6ea856",
+          "trunk",
+          "#664326",
+          "canopy1",
+          "#367833",
+          "canopy2",
+          "#4b9444",
+          "canopy3",
+          "#68b35e",
+          BUILDING_WALL,
+        ];
       }
 
       function paintRoofs() {
         if (!mapReady) return;
-        ["uhi-3d-buildings", "building-3d"].forEach((id) => {
-          if (map.getLayer(id)) {
-            try {
-              map.setPaintProperty(id, "fill-extrusion-color", roofColor());
-            } catch (err) {}
-          }
-        });
+        if (map.getLayer("uhi-3d-scene")) {
+          try {
+            map.setPaintProperty("uhi-3d-scene", "fill-extrusion-color", sceneColorExpr());
+          } catch (err) {}
+        }
       }
 
       function initMap() {
@@ -920,75 +1152,158 @@
             mapReady = true;
             $("mapFallback").style.display = "none";
             try {
+              map.setLight({
+                anchor: "viewport",
+                color: "#ffffff",
+                intensity: 0.62,
+                position: [1.5, 215, 48],
+              });
+              if (map.getLayer("building-3d")) {
+                map.setLayoutProperty("building-3d", "visibility", "none");
+              }
+              const minH = ["coalesce", ["get", "render_min_height"], 0];
+              const maxH = ["coalesce", ["get", "render_height"], 12];
+              const roofBase = ["max", minH, ["-", maxH, 0.8]];
               map.addLayer({
                 id: "uhi-3d-buildings",
                 source: "openmaptiles",
                 "source-layer": "building",
+                filter: ["!", ["has", "hide_3d"]],
                 type: "fill-extrusion",
                 minzoom: 13,
                 paint: {
-                  "fill-extrusion-color": roofColor(),
-                  "fill-extrusion-height": ["coalesce", ["get", "render_height"], 12],
-                  "fill-extrusion-base": ["coalesce", ["get", "render_min_height"], 0],
-                  "fill-extrusion-opacity": 0.92,
+                  "fill-extrusion-color": BUILDING_WALL,
+                  "fill-extrusion-height": roofBase,
+                  "fill-extrusion-base": minH,
+                  "fill-extrusion-opacity": 1,
+                  "fill-extrusion-vertical-gradient": true,
                 },
               });
+              map.addSource("uhi-roofs-src", {
+                type: "geojson",
+                data: { type: "FeatureCollection", features: [] },
+              });
+              // Unified 3D extrusion layer for walls, roofs, rooftop gardens, and 3D trees
+              // so WebGL's hardware depth buffer properly occludes trees behind buildings.
+              map.addLayer({
+                id: "uhi-3d-scene",
+                source: "uhi-roofs-src",
+                type: "fill-extrusion",
+                minzoom: 13,
+                filter: ["<", ["get", "treeOrder"], state.trees],
+                paint: {
+                  "fill-extrusion-color": sceneColorExpr(),
+                  "fill-extrusion-height": ["get", "top_h"],
+                  "fill-extrusion-base": ["get", "base_h"],
+                  "fill-extrusion-opacity": 1,
+                  "fill-extrusion-vertical-gradient": true,
+                },
+              });
+              map.on("sourcedata", (e) => {
+                if (e.sourceId === "openmaptiles" && e.isSourceLoaded) scheduleRoofRebuild();
+              });
+              map.on("moveend", scheduleRoofRebuild);
+              scheduleRoofRebuild();
             } catch (err) {
               /* style may already ship its own 3D layer — that's fine */
             }
             try {
-              map.addImage("uhi-tree-icon", makeTreeIcon(), { pixelRatio: 2 });
               map.addSource("uhi-trees", { type: "geojson", data: makeTreeData() });
-              map.addLayer({
-                // grass: soft patches flat on the ground
-                id: "uhi-grass",
-                source: "uhi-trees",
-                type: "circle",
-                filter: ["==", ["get", "kind"], "grass"],
-                paint: {
-                  "circle-color": "#7fb069",
-                  "circle-opacity": 0.45,
-                  "circle-blur": 0.7,
-                  "circle-pitch-alignment": "map",
-                  "circle-radius": [
-                    "interpolate",
-                    ["linear"],
-                    ["zoom"],
-                    12,
-                    ["*", 3, ["get", "scale"]],
-                    15,
-                    ["*", 11, ["get", "scale"]],
-                    17,
-                    ["*", 26, ["get", "scale"]],
-                  ],
+              // Insert ground grass BELOW road/transportation layers and 3D buildings
+              // so streets render cleanly on top of grass edges.
+              const styleLayers = map.getStyle()?.layers || [];
+              const firstRoadLayer = styleLayers.find(
+                (l) =>
+                  l["source-layer"] === "transportation" ||
+                  /^(tunnel|road|highway|bridge)/i.test(l.id),
+              );
+              const beforeGroundLayer =
+                firstRoadLayer?.id ||
+                (map.getLayer("uhi-3d-buildings") ? "uhi-3d-buildings" : undefined);
+              map.addLayer(
+                {
+                  // outer turf: placed BELOW roads and 3D buildings so it stays strictly on open ground
+                  id: "uhi-grass",
+                  source: "uhi-trees",
+                  type: "circle",
+                  filter: ["==", ["get", "kind"], "grass"],
+                  paint: {
+                    "circle-color": "#6ba353",
+                    "circle-opacity": 0.72,
+                    "circle-blur": 0.28,
+                    "circle-pitch-alignment": "map",
+                    "circle-radius": [
+                      "interpolate",
+                      ["linear"],
+                      ["zoom"],
+                      12,
+                      ["*", 2.6, ["get", "scale"]],
+                      15,
+                      ["*", 9.5, ["get", "scale"]],
+                      17,
+                      ["*", 22, ["get", "scale"]],
+                    ],
+                  },
                 },
-              });
-              map.addLayer({
-                // trees: upright sprites, varied sizes
-                id: "uhi-trees",
-                source: "uhi-trees",
-                type: "symbol",
-                filter: ["==", ["get", "kind"], "tree"],
-                layout: {
-                  "icon-image": "uhi-tree-icon",
-                  "icon-anchor": "bottom",
-                  "icon-allow-overlap": true,
-                  "icon-ignore-placement": true,
-                  "icon-size": [
-                    "interpolate",
-                    ["linear"],
-                    ["zoom"],
-                    12,
-                    ["*", 0.1, ["get", "scale"]],
-                    15,
-                    ["*", 0.38, ["get", "scale"]],
-                    17,
-                    ["*", 0.8, ["get", "scale"]],
-                  ],
+                beforeGroundLayer,
+              );
+              map.addLayer(
+                {
+                  // sunlit inner lawn highlight on the ground
+                  id: "uhi-grass-inner",
+                  source: "uhi-trees",
+                  type: "circle",
+                  filter: ["==", ["get", "kind"], "grass-inner"],
+                  paint: {
+                    "circle-color": "#87bf6c",
+                    "circle-opacity": 0.65,
+                    "circle-blur": 0.22,
+                    "circle-pitch-alignment": "map",
+                    "circle-radius": [
+                      "interpolate",
+                      ["linear"],
+                      ["zoom"],
+                      12,
+                      ["*", 1.7, ["get", "scale"]],
+                      15,
+                      ["*", 6.5, ["get", "scale"]],
+                      17,
+                      ["*", 14, ["get", "scale"]],
+                    ],
+                  },
                 },
-              });
+                beforeGroundLayer,
+              );
+              map.addLayer(
+                {
+                  // soft ground shadow under each 3D tree trunk
+                  id: "uhi-tree-shadow",
+                  source: "uhi-trees",
+                  type: "circle",
+                  filter: ["==", ["get", "kind"], "tree-shadow"],
+                  paint: {
+                    "circle-color": "#2d4c25",
+                    "circle-opacity": 0.35,
+                    "circle-blur": 0.45,
+                    "circle-pitch-alignment": "map",
+                    "circle-radius": [
+                      "interpolate",
+                      ["linear"],
+                      ["zoom"],
+                      12,
+                      ["*", 1.6, ["get", "scale"]],
+                      15,
+                      ["*", 6.5, ["get", "scale"]],
+                      17,
+                      ["*", 15, ["get", "scale"]],
+                    ],
+                  },
+                },
+                beforeGroundLayer,
+              );
             } catch (err) {}
             paintRoofs();
+            paintTrees();
           });
         } catch (err) {
           $("mapFallback").style.display = "grid";
@@ -996,82 +1311,218 @@
       }
 
       function flyToCity() {
+        buildingBoxes = [];
+        roadSegments = [];
+        treePoolCity = null;
         if (map)
           map.flyTo({ center: [city().lon, city().lat], zoom: 15.6, pitch: 60, bearing: -17 });
         paintTrees(); // regrow the canopy dots around the new city
       }
 
-      /* ---- green space: canopy dots scattered around downtown ----
-   A fixed pool of 150 random spots per city; the tree slider shows the
-   first N, so dots appear/disappear steadily instead of reshuffling. */
-      // a small tree sprite drawn in code (trunk + leafy canopy) for the symbol layer
-      function makeTreeIcon() {
-        const s = 64,
-          cv = document.createElement("canvas");
-        cv.width = s;
-        cv.height = s;
-        const c = cv.getContext("2d");
-        c.fillStyle = "#7a5230";
-        c.fillRect(s / 2 - 3.5, s * 0.55, 7, s * 0.42);
-        c.fillStyle = "#3e8a3c";
-        [
-          [s / 2, s * 0.36, 17],
-          [s / 2 - 12, s * 0.47, 12],
-          [s / 2 + 12, s * 0.47, 12],
-          [s / 2, s * 0.54, 13],
-        ].forEach(([x, y, r]) => {
-          c.beginPath();
-          c.arc(x, y, r, 0, 7);
-          c.fill();
-        });
-        c.fillStyle = "#5aa554";
-        c.beginPath();
-        c.arc(s / 2 - 5, s * 0.36, 11, 0, 7);
-        c.fill();
-        c.beginPath();
-        c.arc(s / 2 + 7, s * 0.44, 8, 0, 7);
-        c.fill();
-        return c.getImageData(0, 0, s, s);
+      /* ---- green space: grassy lawns on the ground, 3D trees in open spaces, and rooftop gardens ---- */
+      let treePool = [],
+        tree3DFeatures = [],
+        treePoolCity = null,
+        treePoolBuiltWithBuildings = false,
+        treePoolBuiltWithRoads = false;
+
+      // Check if a ground coordinate overlaps a building footprint
+      function hitsBuilding(lon, lat, isTree) {
+        const padX = isTree ? 0.00004 : 0.000025;
+        const padY = isTree ? 0.000035 : 0.00002;
+        for (let i = 0; i < buildingBoxes.length; i++) {
+          const b = buildingBoxes[i];
+          if (
+            lon >= b.minX - padX &&
+            lon <= b.maxX + padX &&
+            lat >= b.minY - padY &&
+            lat <= b.maxY + padY
+          ) {
+            return true;
+          }
+        }
+        return false;
       }
 
-      let treePool = [],
-        treePoolCity = null;
+      function distToSegSq(px, py, x1, y1, x2, y2) {
+        const dx = x2 - x1,
+          dy = y2 - y1;
+        const lenSq = dx * dx + dy * dy;
+        let t = lenSq > 0 ? ((px - x1) * dx + (py - y1) * dy) / lenSq : 0;
+        if (t < 0) t = 0;
+        else if (t > 1) t = 1;
+        const ex = x1 + t * dx - px,
+          ey = y1 + t * dy - py;
+        return ex * ex + ey * ey;
+      }
+
+      function hitsRoad(lon, lat) {
+        const pad = 0.00022; // ~24m clearance so grassy patches stay clear of streets
+        const padSq = pad * pad;
+        for (let i = 0; i < roadSegments.length; i++) {
+          const s = roadSegments[i];
+          if (lon < s.minX - pad || lon > s.maxX + pad || lat < s.minY - pad || lat > s.maxY + pad)
+            continue;
+          if (distToSegSq(lon, lat, s.x1, s.y1, s.x2, s.y2) < padSq) return true;
+        }
+        return false;
+      }
+
       function ensureTreePool() {
         if (treePoolCity === CONFIG.city) return;
         treePoolCity = CONFIG.city;
+        treePoolBuiltWithBuildings = buildingBoxes.length > 0;
+        treePoolBuiltWithRoads = roadSegments.length > 0;
         treePool = [];
+        tree3DFeatures = [];
         const R = 0.0055,
           la = city().lat,
           lo = city().lon;
         const kx = Math.cos((la * Math.PI) / 180);
-        for (let i = 0; i < 150; i++) {
-          const a = Math.random() * 2 * Math.PI,
-            r = R * Math.sqrt(Math.random());
-          treePool.push({
-            c: [lo + (r * Math.cos(a)) / kx, la + r * Math.sin(a)],
-            kind: i % 4 === 0 ? "grass" : "tree", // every 4th spot is a lawn patch
-            scale: +(0.75 + Math.random() * 0.6).toFixed(2),
-          });
+        // Deterministic PRNG per city so open-space placement is repeatable
+        let seed = Math.round(Math.abs(la * 10000 + lo * 10000)) + 1337;
+        const rand = () => {
+          seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+          return seed / 4294967296;
+        };
+        const totalSpots = 160;
+        for (let i = 0; i < totalSpots; i++) {
+          // ~33% grassy areas, ~67% trees
+          const isGrass = i % 3 === 0;
+          let lon = lo,
+            lat = la,
+            dLon = 0,
+            dLat = 0,
+            placed = false;
+          for (let attempt = 0; attempt < 65; attempt++) {
+            const a = rand() * 2 * Math.PI,
+              r = R * Math.sqrt(rand());
+            lon = lo + (r * Math.cos(a)) / kx;
+            lat = la + r * Math.sin(a);
+            if (isGrass) {
+              dLon = ((rand() - 0.5) * 0.00014) / kx;
+              dLat = (rand() - 0.5) * 0.00012;
+              if (
+                !hitsBuilding(lon, lat, false) &&
+                !hitsBuilding(lon + dLon, lat + dLat, false) &&
+                !hitsRoad(lon, lat) &&
+                !hitsRoad(lon + dLon, lat + dLat)
+              ) {
+                placed = true;
+                break;
+              }
+            } else {
+              // Trees are allowed near roads, just not inside building footprints
+              if (!hitsBuilding(lon, lat, true)) {
+                placed = true;
+                break;
+              }
+            }
+          }
+          if (!placed && buildingBoxes.length > 0) {
+            treePool.push({ items: [] });
+            continue;
+          }
+          const scale = +(0.82 + rand() * 0.55).toFixed(2);
+          const treeOrder = Math.floor((i / totalSpots) * 100);
+          if (isGrass) {
+            // Multi-lobed lawn cluster for natural park/turf shapes on the ground
+            treePool.push({
+              items: [
+                { c: [lon, lat], kind: "grass", scale },
+                {
+                  c: [lon + dLon, lat + dLat],
+                  kind: "grass",
+                  scale: +(scale * 0.82).toFixed(2),
+                },
+                {
+                  c: [lon + dLon * 0.4, lat + dLat * 0.4],
+                  kind: "grass-inner",
+                  scale,
+                },
+              ],
+            });
+          } else {
+            // Ground shadow circle + 3D extruded trunk & 3-tier canopy in uhi-3d-scene
+            treePool.push({
+              items: [{ c: [lon, lat], kind: "tree-shadow", scale }],
+            });
+            const hTrunk = +(3.0 * scale).toFixed(2);
+            const h1 = +(6.5 * scale).toFixed(2);
+            const h2 = +(9.2 * scale).toFixed(2);
+            const h3 = +(11.0 * scale).toFixed(2);
+            tree3DFeatures.push(
+              {
+                type: "Feature",
+                geometry: {
+                  type: "Polygon",
+                  coordinates: makeCirclePoly(lon, lat, 1.15 * scale, kx, 8),
+                },
+                properties: { kind: "trunk", base_h: 0, top_h: hTrunk, bucket: 0, treeOrder },
+              },
+              {
+                type: "Feature",
+                geometry: {
+                  type: "Polygon",
+                  coordinates: makeCirclePoly(lon, lat, 5.2 * scale, kx, 10),
+                },
+                properties: {
+                  kind: "canopy1",
+                  base_h: hTrunk,
+                  top_h: h1,
+                  bucket: 0,
+                  treeOrder,
+                },
+              },
+              {
+                type: "Feature",
+                geometry: {
+                  type: "Polygon",
+                  coordinates: makeCirclePoly(lon, lat, 3.9 * scale, kx, 10),
+                },
+                properties: { kind: "canopy2", base_h: h1, top_h: h2, bucket: 0, treeOrder },
+              },
+              {
+                type: "Feature",
+                geometry: {
+                  type: "Polygon",
+                  coordinates: makeCirclePoly(lon, lat, 2.3 * scale, kx, 8),
+                },
+                properties: { kind: "canopy3", base_h: h2, top_h: h3, bucket: 0, treeOrder },
+              },
+            );
+          }
         }
       }
       function makeTreeData() {
         ensureTreePool();
-        const n = Math.round(state.trees * 1.5); // 0% -> nothing, 100% -> 150
-        return {
-          type: "FeatureCollection",
-          features: treePool
-            .slice(0, n)
-            .map((p) => ({
+        const n = Math.round(state.trees * 1.6); // 0% -> nothing, 100% -> 160
+        const features = [];
+        for (let i = 0; i < n && i < treePool.length; i++) {
+          const group = treePool[i].items;
+          for (let j = 0; j < group.length; j++) {
+            const p = group[j];
+            features.push({
               type: "Feature",
               geometry: { type: "Point", coordinates: p.c },
               properties: { kind: p.kind, scale: p.scale },
-            })),
+            });
+          }
+        }
+        return {
+          type: "FeatureCollection",
+          features,
         };
       }
       function paintTrees() {
         if (!mapReady) return;
         const s = map.getSource("uhi-trees");
         if (s) s.setData(makeTreeData());
+        if (map.getLayer("uhi-3d-scene")) {
+          try {
+            map.setFilter("uhi-3d-scene", ["<", ["get", "treeOrder"], state.trees]);
+          } catch (err) {}
+        }
       }
 
       /* ---- sun rays, drawn on a canvas overlay above the 3D map ----
@@ -1120,11 +1571,22 @@
         if (mapReady) {
           try {
             const f = map.queryRenderedFeatures([x, y], {
-              layers: ["uhi-trees", "uhi-grass", "uhi-3d-buildings"],
+              layers: ["uhi-3d-scene", "uhi-3d-buildings", "uhi-grass-inner", "uhi-grass"],
             });
             if (f.length) {
-              if (f[0].layer.id !== "uhi-3d-buildings") return "green";
-              return Math.random() < state.roofs / 100 ? "roofCool" : "roofStandard";
+              const lid = f[0].layer.id;
+              const kind = f[0].properties?.kind;
+              if (
+                lid === "uhi-grass-inner" ||
+                lid === "uhi-grass" ||
+                kind === "garden" ||
+                kind === "canopy1" ||
+                kind === "canopy2" ||
+                kind === "canopy3" ||
+                kind === "trunk"
+              )
+                return "green";
+              return isCoolRoofFeature(f[0]) ? "roofCool" : "roofStandard";
             }
           } catch (err) {}
         }
@@ -1180,16 +1642,21 @@
           h = raysCanvas.height;
         c.clearRect(0, 0, w, h);
         rays.forEach((r) => {
-          c.strokeStyle = !r.reflected
-            ? "rgba(242,193,78,.9)"
-            : r.bright
-              ? "rgba(190,230,255,1)" // off a cool roof
-              : "rgba(143,211,244,.75)"; // ordinary bounce
-          c.lineWidth = r.reflected && r.bright ? 3.2 : 2.5;
+          const lw = r.reflected && r.bright ? 4.2 : 3.4;
           c.lineCap = "round";
           c.beginPath();
           c.moveTo(r.x, r.y);
-          c.lineTo(r.x - r.vx * 5, r.y - r.vy * 5);
+          c.lineTo(r.x - r.vx * 6.5, r.y - r.vy * 6.5);
+          // Subtle dark casing so rays stand out against light map tiles & white cool roofs
+          c.strokeStyle = "rgba(15, 23, 42, 0.35)";
+          c.lineWidth = lw + 2;
+          c.stroke();
+          c.strokeStyle = !r.reflected
+            ? "rgba(245, 158, 11, 0.98)"
+            : r.bright
+              ? "rgba(37, 137, 245, 1)" // off a cool roof
+              : "rgba(56, 152, 255, 0.92)"; // ordinary bounce
+          c.lineWidth = lw;
           c.stroke();
         });
         heats.forEach((hb) => {
@@ -1249,6 +1716,10 @@
           hi = Math.max(hi, t.base + DAILY_SWING * 0.5 + t.dT + 1.5);
         });
         return { lo, hi };
+      }
+
+      function currentRunColor() {
+        return TRIAL_COLORS[(state.nextTrialId - 1) % TRIAL_COLORS.length];
       }
 
       function drawChart() {
@@ -1331,37 +1802,36 @@
           cctx.setLineDash([]);
         });
 
-        line(
-          (h) => cityTempAt(h, b, d),
-          getComputedStyle(document.documentElement).getPropertyValue("--series-city").trim(),
-          2,
-        );
+        const runColor = currentRunColor();
+        $("runSwatch").style.background = runColor;
 
-        // direct label at the leading edge
-        if (state.hour > 0.6) {
-          const yc = Y(cityTempAt(state.hour, b, d)),
-            x = X(state.hour);
-          cctx.textAlign = "left";
-          cctx.textBaseline = "middle";
-          cctx.font = "600 12px Inter, Arial, sans-serif";
-          cctx.beginPath();
-          cctx.arc(x, yc, 4, 0, 7);
-          cctx.fillStyle = getComputedStyle(document.documentElement)
-            .getPropertyValue("--series-city")
-            .trim();
-          cctx.fill();
-          cctx.strokeStyle = "#fcfcfb";
-          cctx.lineWidth = 2;
-          cctx.stroke();
-          cctx.fillStyle = "#52514e";
-          cctx.fillText("City", x + 9, yc);
+        if (state.hour > 0 && state.hour < 24) {
+          line((h) => cityTempAt(h, b, d), runColor, 2);
+
+          // direct label at the leading edge
+          if (state.hour > 0.6) {
+            const yc = Y(cityTempAt(state.hour, b, d)),
+              x = X(state.hour);
+            cctx.textAlign = "left";
+            cctx.textBaseline = "middle";
+            cctx.font = "600 12px Inter, Arial, sans-serif";
+            cctx.beginPath();
+            cctx.arc(x, yc, 4, 0, 7);
+            cctx.fillStyle = runColor;
+            cctx.fill();
+            cctx.strokeStyle = "#fcfcfb";
+            cctx.lineWidth = 2;
+            cctx.stroke();
+            cctx.fillStyle = "#52514e";
+            cctx.fillText("City", x + 9, yc);
+          }
         }
       }
 
       /* ---- chart tooltip: hover or tap a curve to see whose it is ---- */
       function chartCurves() {
         const list = [];
-        if (state.hour > 0.05) {
+        if (state.hour > 0.05 && state.hour < 24) {
           const b = base(),
             d = dT();
           list.push({
@@ -1423,30 +1893,12 @@
    6. LOOP + UI
    ========================================================================== */
 
-      // mean city temperature across daylight hours (5:30am–7:30pm) for the current settings
-      function avgDaytimeTemp() {
-        const b = base(),
-          d = dT();
-        let s = 0,
-          n = 0;
-        for (let h = 5.5; h <= 19.5; h += 0.25) {
-          s += cityTempAt(h, b, d);
-          n++;
-        }
-        return s / n;
-      }
-
       function readouts() {
         const b = base(),
           d = dT();
-        const tc = cityTempAt(state.hour, b, d),
-          tr = ruralTempAt(state.hour, b);
-        $("tCity").textContent = toUnit(tc).toFixed(1) + unitLbl();
-        $("tDayAvg").textContent = toUnit(avgDaytimeTemp()).toFixed(1) + unitLbl();
-        $("tDiff").textContent = "+" + toUnitD(tc - tr).toFixed(1) + unitLbl();
-        $("dataNote").textContent =
-          `Baseline for ${city().name} in ${MONTHS[CONFIG.month]}: ${toUnit(b).toFixed(1)}${unitLbl()} monthly average. ` +
-          `Peak heat-island effect with these settings: +${toUnitD(d).toFixed(1)}${unitLbl()}.`;
+        // $("dataNote").textContent =
+        // `Baseline for ${city().name} in ${MONTHS[CONFIG.month]}: ${toUnit(b).toFixed(1)}${unitLbl()} monthly average. ` +
+        // `Peak heat-island effect with these settings: +${toUnitD(d).toFixed(1)}${unitLbl()}.`;
       }
 
       function frame(ts) {
@@ -1520,11 +1972,29 @@
         logEvent("resetModel", {});
       };
       /* ---- trials: every completed run is saved and can be toggled on the chart ---- */
+      function trialTempAvgs(b, d) {
+        let daySum = 0,
+          dayN = 0,
+          dayHigh = -Infinity;
+        for (let h = 5.5; h <= 19.5; h += 0.25) {
+          const temp = cityTempAt(h, b, d);
+          daySum += temp;
+          dayN++;
+          if (temp > dayHigh) dayHigh = temp;
+        }
+        return { dayAvg: daySum / dayN, dayHigh };
+      }
+
       function saveTrial() {
+        const b = base(),
+          d = dT();
+        const { dayAvg, dayHigh } = trialTempAvgs(b, d);
         const t = {
           id: state.nextTrialId++,
-          base: base(),
-          dT: dT(),
+          base: b,
+          dT: d,
+          dayAvg,
+          dayHigh,
           roofs: state.roofs,
           trees: state.trees,
           city: city().name,
@@ -1556,6 +2026,18 @@
         &middot; ${t.city}, ${t.month}</label>
       <button class="del" data-del="${t.id}" title="Delete this trial" type="button">&#10005;</button>
     </div>`,
+          )
+          .join("");
+        $("trialTableBody").innerHTML = state.trials
+          .map(
+            (t) => `
+    <tr>
+      <td><i class="swatch" style="background:${t.color}"></i>${t.id}</td>
+      <td class="num">${t.roofs}%</td>
+      <td class="num">${t.trees}%</td>
+      <td class="num">${toUnit(t.dayAvg).toFixed(1)}${unitLbl()}</td>
+      <td class="num">${toUnit(t.dayHigh).toFixed(1)}${unitLbl()}</td>
+    </tr>`,
           )
           .join("");
       }
@@ -1594,6 +2076,7 @@
         if (CONFIG.unit === u) return;
         CONFIG.unit = u;
         syncUnitButtons();
+        renderTrials();
         renderConfig();
         renderClimTable();
         logEvent("changeTemperatureUnit", { unit: u });
@@ -1702,7 +2185,8 @@
           CONFIG.city = known[0];
           rebuild();
           reset();
-          locStatus(`Using ${known[1].name}${known[1].custom ? "" : " (built-in data)"}.`);
+          // locStatus(`Using ${known[1].name}${known[1].custom ? "" : " (built-in data)"}.`);
+          locStatus(`Using ${known[1].name}.`);
           return;
         }
         try {
