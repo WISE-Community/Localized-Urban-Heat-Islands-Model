@@ -14,8 +14,8 @@
         --surface-2: #eceae4;
         --line: #dcdad2;
         --text-primary: #0b0b0b;
-        --text-secondary: #52514e;
-        --text-muted: #7a7873;
+        --text-secondary: #222222;
+        --text-muted: #444444;
         --series-city: #eb6834; /* categorical slot 2 — the city */
         --series-rural: #2a78d6; /* categorical slot 1 — surrounding area */
         --accent: #1baf7a;
@@ -75,7 +75,7 @@
       }
       .row {
         display: grid;
-        grid-template-columns: 1.25fr 1fr;
+        grid-template-columns: 1fr 1fr;
         gap: 16px;
       }
       @media (max-width: 980px) {
@@ -257,80 +257,75 @@
       .unit-toggle button.on:hover {
         background: #0b0b0b;
       }
-      .trialdd {
-        position: relative;
-        display: inline-block;
-        border-top: none;
-        padding-top: 0;
-        margin-top: 10px;
-      }
-      .trialdd summary {
-        list-style: none;
+      .trialcell {
         display: inline-flex;
         align-items: center;
-        gap: 8px;
-        cursor: pointer;
-        font-size: 13.5px;
-        font-weight: 500;
-        color: var(--text-primary);
-        background: var(--surface-1);
-        border: 1px solid var(--line);
-        border-radius: 6px;
-        padding: 7px 14px;
-      }
-      .trialdd summary::-webkit-details-marker {
-        display: none;
-      }
-      .trialdd summary::after {
-        content: "\25be";
-        color: var(--text-muted);
-      }
-      .trialdd[open] summary {
-        background: var(--surface-2);
-      }
-      .trialpanel {
-        position: absolute;
-        z-index: 20;
-        top: calc(100% + 6px);
-        left: 0;
-        min-width: 320px;
-        background: var(--surface-1);
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        padding: 12px;
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-      }
-      .trialrow {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 5px 2px;
-        font-size: 13px;
-        color: var(--text-secondary);
-      }
-      .trialrow input {
-        accent-color: var(--accent);
-        flex: none;
-      }
-      .trialrow .sw {
-        width: 10px;
-        height: 10px;
-        border-radius: 2px;
-        flex: none;
-      }
-      .trialrow label {
+        gap: 6px;
         cursor: pointer;
       }
-      .trialrow .del {
-        margin-left: auto;
+      .trialcell .swatch {
+        flex: none;
+      }
+      #trialTable th.num,
+      #trialTable td.num {
+        width: 1%;
+        white-space: nowrap;
+        text-align: center;
+        padding-left: 8px;
+        padding-right: 8px;
+      }
+      #trialTable th:last-child,
+      #trialTable td:last-child {
+        width: 1%;
+        white-space: nowrap;
+        padding-left: 2px;
+        padding-right: 4px;
+      }
+      #trialTable input[type="checkbox"] {
+        appearance: none;
+        -webkit-appearance: none;
+        width: 15px;
+        height: 15px;
+        border: 1.5px solid #8a8882;
+        border-radius: 3px;
+        background: #ffffff;
+        margin: 0;
+        cursor: pointer;
+        display: inline-grid;
+        place-content: center;
+        flex: none;
+      }
+      #trialTable input[type="checkbox"]:checked::before {
+        content: "";
+        width: 8px;
+        height: 4.5px;
+        border-left: 2px solid var(--text-primary);
+        border-bottom: 2px solid var(--text-primary);
+        transform: rotate(-45deg) translate(0.5px, -0.5px);
+      }
+      #trialTable input[type="checkbox"]:indeterminate {
+        background: #ffffff;
+        border-color: var(--text-primary);
+      }
+      #trialTable input[type="checkbox"]:indeterminate::before {
+        content: "";
+        width: 8px;
+        height: 2px;
+        background: var(--text-primary);
+      }
+      #trialTable input[type="checkbox"]:disabled {
+        opacity: 0.45;
+        cursor: default;
+      }
+      #trialTable .del {
         border: none;
         background: none;
         color: var(--text-muted);
         cursor: pointer;
         padding: 2px 6px;
-        flex: none;
+        line-height: 1;
       }
-      .trialrow .del:hover {
+      #trialTable .del:hover {
         color: #c0392b;
         background: none;
       }
@@ -359,7 +354,7 @@
       }
       .legend {
         display: flex;
-        gap: 16px;
+        gap: 10px;
         font-size: 13px;
         color: var(--text-secondary);
         margin-top: 10px;
@@ -468,19 +463,17 @@
             <div class="mapoverlay" id="heatOverlay"></div>
             <div class="mapoverlay" id="nightOverlay"></div>
             <canvas id="rays"></canvas>
-            <div id="mapCaption">
-              <b id="mapCity"></b><span id="mapClock"></span><span id="mapGreen"></span>
-            </div>
+            <div id="mapCaption"><b id="mapCity"></b><span id="mapClock"></span></div>
             <div id="mapFallback">
               The 3D map needs an internet connection.<br />
               Check the connection and reload &mdash; the model itself still works.
             </div>
           </div>
           <div class="legend">
-            <span><i class="swatch" style="background: #f59e0b"></i>Sunlight in</span>
+            <span><i class="swatch" style="background: #f59e0b"></i>Sunlight</span>
             <span><i class="swatch" style="background: #2589f5"></i>Sunlight reflected</span>
             <span><i class="swatch" style="background: #e34948"></i>Heat absorbed</span>
-            <span><i class="swatch" style="background: #57c4a3"></i>Trees &amp; green space</span>
+            <span><i class="swatch" style="background: #57c4a3"></i>Tree &amp; green space</span>
             <span
               ><i class="swatch" style="background: #ffffff; border: 1px solid #dcdad2"></i
               >Reflective roofs</span
@@ -490,13 +483,13 @@
           <div class="controls">
             <div class="ctl">
               <label for="roofs"
-                >Reflective (cool) roofs <b><span id="roofsV">0</span>%</b></label
+                >Reflective roofs <b><span id="roofsV">0</span>%</b></label
               >
               <input type="range" id="roofs" min="0" max="100" value="0" step="5" />
             </div>
             <div class="ctl">
               <label for="trees"
-                >Tree &amp; green space cover <b><span id="treesV">0</span>%</b></label
+                >Tree &amp; green space <b><span id="treesV">0</span>%</b></label
               >
               <input type="range" id="trees" min="0" max="100" value="0" step="5" />
             </div>
@@ -527,38 +520,28 @@
             <div id="chartTip" hidden></div>
           </div>
           <div class="legend">
-            <span
-              ><i class="swatch" id="runSwatch" style="background: #2a78d6"></i>City (current
-              run)</span
-            >
-            <span
-              ><i class="swatch" style="background: #8d8a80"></i>Saved trials (dashed) &mdash; hover
-              a line for details</span
-            >
+            Hover over lines on the graph for more details.<br />Use the checkboxes in the table
+            below to show or hide trials on the graph.
           </div>
-          <details class="trialdd" id="trialDD">
-            <summary id="trialSummary">Trials (0)</summary>
-            <div class="trialpanel">
-              <div class="note" id="trialEmpty" style="margin-top: 0">
-                Run the model for a full day &mdash; every finished run is saved here as a trial you
-                can show on the chart.
-              </div>
-              <div id="trialList"></div>
-              <div class="btnrow" style="margin-top: 10px">
-                <button id="trialAll" type="button">Show all</button>
-                <button id="trialNone" type="button">Hide all</button>
-                <button id="trialClear" type="button">Delete all</button>
-              </div>
-            </div>
-          </details>
           <table id="trialTable">
             <thead>
               <tr>
-                <th>Trial</th>
-                <th class="num">Reflective roofs</th>
-                <th class="num">Tree &amp; green space</th>
-                <th class="num">Avg. daytime temp</th>
-                <th class="num">High daytime temp</th>
+                <th>
+                  <label class="trialcell">
+                    <input
+                      type="checkbox"
+                      id="trialSelectAll"
+                      title="Select or deselect all trials"
+                      disabled
+                    />
+                    <span>Location</span>
+                  </label>
+                </th>
+                <th class="num">Reflective<br />roofs</th>
+                <th class="num">Tree &amp;<br />green space</th>
+                <th class="num">Avg daytime<br />temp</th>
+                <th class="num">High<br />temp</th>
+                <th class="num"></th>
               </tr>
             </thead>
             <tbody id="trialTableBody"></tbody>
@@ -569,11 +552,11 @@
 
       <!-- ============ AUTHOR / TEACHER PANEL ============ -->
       <section class="card">
-        <h2>Author panel — localize this model for your school</h2>
+        <h2>Localize this model for your class</h2>
 
         <div class="authorgrid">
           <label class="f" style="grid-column: 1/-1"
-            ><span>Location &mdash; type any city, neighborhood, or school address</span>
+            ><span>Location &mdash; type a city, neighborhood, school address, etc.</span>
             <span style="display: flex; gap: 8px">
               <input
                 type="text"
@@ -1677,7 +1660,6 @@
       function updateMapVisuals() {
         $("mapCity").textContent = CONFIG.label || `${city().name} — ${MONTHS[CONFIG.month]}`;
         $("mapClock").textContent = clockLabel(state.hour);
-        $("mapGreen").textContent = `Green space: ${state.trees}%`;
         const daylight = sunUp() ? Math.sin((Math.PI * (state.hour - 5.5)) / 14) : 0;
         $("heatOverlay").style.opacity = Math.min(0.75, dT() / 6) * (0.2 + 0.8 * daylight);
         $("nightOverlay").style.opacity = sunUp() ? 0 : 0.45;
@@ -1718,7 +1700,21 @@
         return { lo, hi };
       }
 
+      function findMatchingTrial() {
+        const cName = city().name,
+          mName = MONTHS[CONFIG.month];
+        return state.trials.find(
+          (t) =>
+            t.city === cName &&
+            t.month === mName &&
+            t.roofs === state.roofs &&
+            t.trees === state.trees,
+        );
+      }
+
       function currentRunColor() {
+        const existing = findMatchingTrial();
+        if (existing) return existing.color;
         return TRIAL_COLORS[(state.nextTrialId - 1) % TRIAL_COLORS.length];
       }
 
@@ -1787,8 +1783,9 @@
         };
 
         // saved trials, drawn behind the live run
+        const activeMatch = state.hour > 0 && state.hour < 24 ? findMatchingTrial() : null;
         state.trials.forEach((t) => {
-          if (!t.visible) return;
+          if (!t.visible || t === activeMatch) return;
           cctx.beginPath();
           for (let h = 0; h <= 24; h += 0.15) {
             const x = X(h),
@@ -1803,7 +1800,6 @@
         });
 
         const runColor = currentRunColor();
-        $("runSwatch").style.background = runColor;
 
         if (state.hour > 0 && state.hour < 24) {
           line((h) => cityTempAt(h, b, d), runColor, 2);
@@ -1835,17 +1831,18 @@
           const b = base(),
             d = dT();
           list.push({
-            name: `This run — ${city().name}, ${MONTHS[CONFIG.month]}`,
-            detail: `${state.roofs}% cool roofs, ${state.trees}% green space`,
+            name: `This trial: ${city().name} – ${MONTHS[CONFIG.month]}`,
+            detail: `${state.roofs}% reflective roofs, ${state.trees}% green space`,
             maxH: state.hour,
             f: (h) => cityTempAt(h, b, d),
           });
         }
+        const activeMatch = state.hour > 0.05 && state.hour < 24 ? findMatchingTrial() : null;
         state.trials.forEach((t) => {
-          if (!t.visible) return;
+          if (!t.visible || t === activeMatch) return;
           list.push({
-            name: `Trial ${t.id} — ${t.city}, ${t.month}`,
-            detail: `${t.roofs}% cool roofs, ${t.trees}% green space`,
+            name: `${t.city} – ${t.month}`,
+            detail: `${t.roofs}% reflective roofs, ${t.trees}% green space`,
             maxH: 24,
             f: (h) => cityTempAt(h, t.base, t.dT),
           });
@@ -1959,13 +1956,19 @@
         if (state.hour >= 24) reset();
         state.running = !state.running;
         $("runBtn").textContent = state.running ? "Pause" : "Run model";
-        if (state.running)
+        if (state.running) {
+          const existing = findMatchingTrial();
+          if (existing && !existing.visible) {
+            existing.visible = true;
+            renderTrials();
+          }
           logEvent("runModel", {
             reflectiveRoofs: state.roofs,
             treeCover: state.trees,
             city: CONFIG.city,
             month: MONTHS[CONFIG.month],
           });
+        }
       };
       $("resetBtn").onclick = () => {
         reset();
@@ -1989,20 +1992,29 @@
         const b = base(),
           d = dT();
         const { dayAvg, dayHigh } = trialTempAvgs(b, d);
-        const t = {
-          id: state.nextTrialId++,
-          base: b,
-          dT: d,
-          dayAvg,
-          dayHigh,
-          roofs: state.roofs,
-          trees: state.trees,
-          city: city().name,
-          month: MONTHS[CONFIG.month],
-          color: TRIAL_COLORS[(state.nextTrialId - 2) % TRIAL_COLORS.length],
-          visible: true,
-        };
-        state.trials.push(t);
+        let t = findMatchingTrial();
+        if (t) {
+          t.base = b;
+          t.dT = d;
+          t.dayAvg = dayAvg;
+          t.dayHigh = dayHigh;
+          t.visible = true;
+        } else {
+          t = {
+            id: state.nextTrialId++,
+            base: b,
+            dT: d,
+            dayAvg,
+            dayHigh,
+            roofs: state.roofs,
+            trees: state.trees,
+            city: city().name,
+            month: MONTHS[CONFIG.month],
+            color: TRIAL_COLORS[(state.nextTrialId - 2) % TRIAL_COLORS.length],
+            visible: true,
+          };
+          state.trials.push(t);
+        }
         renderTrials();
         logEvent("trialSaved", {
           trial: t.id,
@@ -2013,62 +2025,66 @@
         });
       }
 
+      function syncSelectAll() {
+        const cb = $("trialSelectAll");
+        if (!cb) return;
+        const total = state.trials.length;
+        const checkedCount = state.trials.filter((t) => t.visible).length;
+        cb.disabled = total === 0;
+        cb.checked = total > 0 && checkedCount === total;
+        cb.indeterminate = checkedCount > 0 && checkedCount < total;
+      }
+
       function renderTrials() {
-        $("trialSummary").textContent = `Trials (${state.trials.length})`;
-        $("trialEmpty").style.display = state.trials.length ? "none" : "block";
-        $("trialList").innerHTML = state.trials
-          .map(
-            (t) => `
-    <div class="trialrow">
-      <input type="checkbox" id="tr${t.id}" data-id="${t.id}" ${t.visible ? "checked" : ""}>
-      <i class="sw" style="background:${t.color}"></i>
-      <label for="tr${t.id}">Trial ${t.id} &mdash; ${t.roofs}% roofs, ${t.trees}% trees
-        &middot; ${t.city}, ${t.month}</label>
-      <button class="del" data-del="${t.id}" title="Delete this trial" type="button">&#10005;</button>
-    </div>`,
-          )
-          .join("");
         $("trialTableBody").innerHTML = state.trials
           .map(
             (t) => `
     <tr>
-      <td><i class="swatch" style="background:${t.color}"></i>${t.id}</td>
+      <td>
+        <label class="trialcell">
+          <input type="checkbox" data-id="${t.id}" ${t.visible ? "checked" : ""}>
+          <i class="swatch" style="background:${t.color}; margin-right:0"></i>
+          <span>${esc(t.city)}</span>
+        </label>
+      </td>
       <td class="num">${t.roofs}%</td>
       <td class="num">${t.trees}%</td>
       <td class="num">${toUnit(t.dayAvg).toFixed(1)}${unitLbl()}</td>
       <td class="num">${toUnit(t.dayHigh).toFixed(1)}${unitLbl()}</td>
+      <td class="num">
+        <button class="del" data-del="${t.id}" title="Delete this trial" type="button">&#10005;</button>
+      </td>
     </tr>`,
           )
           .join("");
+        syncSelectAll();
       }
 
-      $("trialList").onchange = (e) => {
+      $("trialSelectAll").onchange = (e) => {
+        const visible = e.target.checked;
+        state.trials.forEach((t) => {
+          t.visible = visible;
+        });
+        renderTrials();
+        logEvent("trialsToggledAll", { visible });
+      };
+
+      $("trialTableBody").onchange = (e) => {
         const t = state.trials.find((x) => x.id === +e.target.dataset.id);
         if (t) {
           t.visible = e.target.checked;
+          syncSelectAll();
           logEvent("trialToggled", { trial: t.id, visible: t.visible });
         }
       };
-      $("trialList").onclick = (e) => {
-        if (e.target.dataset.del) {
-          const id = +e.target.dataset.del;
+      $("trialTableBody").onclick = (e) => {
+        const delBtn = e.target.closest("[data-del]");
+        if (delBtn) {
+          const id = +delBtn.dataset.del;
           state.trials = state.trials.filter((x) => x.id !== id);
           renderTrials();
           logEvent("trialDeleted", { trial: id });
         }
-      };
-      $("trialAll").onclick = () => {
-        state.trials.forEach((t) => (t.visible = true));
-        renderTrials();
-      };
-      $("trialNone").onclick = () => {
-        state.trials.forEach((t) => (t.visible = false));
-        renderTrials();
-      };
-      $("trialClear").onclick = () => {
-        state.trials = [];
-        renderTrials();
-        logEvent("trialsCleared", {});
       };
 
       /* ---- °C / °F toggle ---- */
