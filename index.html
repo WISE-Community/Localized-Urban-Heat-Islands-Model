@@ -281,7 +281,8 @@
         padding-left: 2px;
         padding-right: 4px;
       }
-      #trialTable input[type="checkbox"] {
+      #trialTable input[type="checkbox"],
+      .authorchecks input[type="checkbox"] {
         appearance: none;
         -webkit-appearance: none;
         width: 15px;
@@ -295,7 +296,13 @@
         place-content: center;
         flex: none;
       }
-      #trialTable input[type="checkbox"]:checked::before {
+      #trialTable input[type="checkbox"]:checked,
+      .authorchecks input[type="checkbox"]:checked {
+        background: #ffffff;
+        border-color: var(--text-primary);
+      }
+      #trialTable input[type="checkbox"]:checked::before,
+      .authorchecks input[type="checkbox"]:checked::before {
         content: "";
         width: 8px;
         height: 4.5px;
@@ -427,6 +434,21 @@
         font-size: 12px;
         color: var(--text-muted);
       }
+      .authorchecks {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px 16px;
+        min-height: 33px;
+        align-items: center;
+      }
+      .authorchecks label {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 13.5px;
+        color: var(--text-primary);
+        cursor: pointer;
+      }
       .note {
         font-size: 12.5px;
         color: var(--text-muted);
@@ -473,21 +495,23 @@
             <span><i class="swatch" style="background: #f59e0b"></i>Sunlight</span>
             <span><i class="swatch" style="background: #2589f5"></i>Sunlight reflected</span>
             <span><i class="swatch" style="background: #e34948"></i>Heat absorbed</span>
-            <span><i class="swatch" style="background: #57c4a3"></i>Tree &amp; green space</span>
-            <span
+            <span id="legTrees"
+              ><i class="swatch" style="background: #57c4a3"></i>Tree &amp; green space</span
+            >
+            <span id="legRoofs"
               ><i class="swatch" style="background: #ffffff; border: 1px solid #dcdad2"></i
               >Reflective roofs</span
             >
           </div>
 
-          <div class="controls">
-            <div class="ctl">
+          <div class="controls" id="controlsWrap">
+            <div class="ctl" id="roofsCtl">
               <label for="roofs"
                 >Reflective roofs <b><span id="roofsV">0</span>%</b></label
               >
               <input type="range" id="roofs" min="0" max="100" value="0" step="5" />
             </div>
-            <div class="ctl">
+            <div class="ctl" id="treesCtl">
               <label for="trees"
                 >Tree &amp; green space <b><span id="treesV">0</span>%</b></label
               >
@@ -537,8 +561,8 @@
                     <span>Location</span>
                   </label>
                 </th>
-                <th class="num">Reflective<br />roofs</th>
-                <th class="num">Tree &amp;<br />green space</th>
+                <th class="num" id="thRoofs">Reflective<br />roofs</th>
+                <th class="num" id="thTrees">Tree &amp;<br />green space</th>
                 <th class="num">Avg daytime<br />temp</th>
                 <th class="num">High<br />temp</th>
                 <th class="num"></th>
@@ -580,12 +604,28 @@
           <label class="f"
             ><span>Scene label shown to students</span> <input type="text" id="labelIn" value=""
           /></label>
+          <div class="f">
+            <span>Variables shown to students</span>
+            <div class="authorchecks">
+              <label><input type="checkbox" id="showRoofsIn" checked /> Reflective roofs</label>
+              <label
+                ><input type="checkbox" id="showTreesIn" checked /> Tree &amp; green space</label
+              >
+            </div>
+          </div>
         </div>
 
         <div class="btnrow">
           <button id="applyBtn" class="primary">Apply to the model</button>
           <button id="copyBtn">Copy this config</button>
           <button id="linkBtn">Copy a shareable link</button>
+        </div>
+
+        <div class="note" style="margin-top: 10px; margin-bottom: 12px">
+          Location search and 3D map geometry come from <b>OpenStreetMap</b> (via Nominatim and
+          OpenFreeMap). Baseline monthly temperatures for searched locations are computed from 10
+          years of historical daily weather data (ERA5 reanalysis, 2014&ndash;2023) via the
+          <b>Open-Meteo</b> API.
         </div>
 
         <details open>
@@ -716,6 +756,8 @@
         city: "san-francisco",
         month: 6, // 0 = January
         label: "", // optional caption shown to students
+        showRoofs: true, // whether the Reflective roofs slider is included
+        showTrees: true, // whether the Tree & green space slider is included
         startRoofs: 0, // starting slider values
         startTrees: 0,
         unit: "F", // "C" or "F" — what students see; the model itself runs in °C
@@ -1009,7 +1051,7 @@
                   if (
                     currentPoly.length === 1 &&
                     box.maxX - box.minX > 0.00012 &&
-                    greenBucket < 20
+                    greenBucket < 12
                   ) {
                     features.push({
                       type: "Feature",
@@ -1022,7 +1064,7 @@
                         base_h: h,
                         top_h: h + 0.3,
                         bucket,
-                        treeOrder: Math.round((greenBucket / 20) * 100),
+                        treeOrder: Math.floor((greenBucket / 12) * 100),
                       },
                     });
                   }
@@ -1340,7 +1382,7 @@
       }
 
       function hitsRoad(lon, lat) {
-        const pad = 0.00022; // ~24m clearance so grassy patches stay clear of streets
+        const pad = 0.00014; // ~15m clearance so grassy patches stay clear of streets
         const padSq = pad * pad;
         for (let i = 0; i < roadSegments.length; i++) {
           const s = roadSegments[i];
@@ -1368,7 +1410,7 @@
           seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
           return seed / 4294967296;
         };
-        const totalSpots = 160;
+        const totalSpots = 340;
         for (let i = 0; i < totalSpots; i++) {
           // ~33% grassy areas, ~67% trees
           const isGrass = i % 3 === 0;
@@ -1377,7 +1419,7 @@
             dLon = 0,
             dLat = 0,
             placed = false;
-          for (let attempt = 0; attempt < 65; attempt++) {
+          for (let attempt = 0; attempt < 100; attempt++) {
             const a = rand() * 2 * Math.PI,
               r = R * Math.sqrt(rand());
             lon = lo + (r * Math.cos(a)) / kx;
@@ -1479,7 +1521,7 @@
       }
       function makeTreeData() {
         ensureTreePool();
-        const n = Math.round(state.trees * 1.6); // 0% -> nothing, 100% -> 160
+        const n = Math.round(state.trees * 3.4); // 0% -> nothing, 100% -> 340
         const features = [];
         for (let i = 0; i < n && i < treePool.length; i++) {
           const group = treePool[i].items;
@@ -1825,6 +1867,13 @@
       }
 
       /* ---- chart tooltip: hover or tap a curve to see whose it is ---- */
+      function trialDetailText(roofs, trees) {
+        const parts = [];
+        if (CONFIG.showRoofs) parts.push(`${roofs}% reflective roofs`);
+        if (CONFIG.showTrees) parts.push(`${trees}% green space`);
+        return parts.join(", ");
+      }
+
       function chartCurves() {
         const list = [];
         if (state.hour > 0.05 && state.hour < 24) {
@@ -1832,7 +1881,7 @@
             d = dT();
           list.push({
             name: `This trial: ${city().name} – ${MONTHS[CONFIG.month]}`,
-            detail: `${state.roofs}% reflective roofs, ${state.trees}% green space`,
+            detail: trialDetailText(state.roofs, state.trees),
             maxH: state.hour,
             f: (h) => cityTempAt(h, b, d),
           });
@@ -1842,7 +1891,7 @@
           if (!t.visible || t === activeMatch) return;
           list.push({
             name: `${t.city} – ${t.month}`,
-            detail: `${t.roofs}% reflective roofs, ${t.trees}% green space`,
+            detail: trialDetailText(t.roofs, t.trees),
             maxH: 24,
             f: (h) => cityTempAt(h, t.base, t.dT),
           });
@@ -1872,8 +1921,9 @@
           tip.hidden = true;
           return;
         }
+        const detailHtml = best.c.detail ? `${esc(best.c.detail)}<br>` : "";
         tip.innerHTML =
-          `<b>${esc(best.c.name)}</b>${esc(best.c.detail)}<br>` +
+          `<b>${esc(best.c.name)}</b>${detailHtml}` +
           `${clockLabel(h)} &middot; ${toUnit(best.c.f(h)).toFixed(1)}${unitLbl()}`;
         tip.hidden = false;
         const wrap = $("chartwrap").getBoundingClientRect();
@@ -1918,7 +1968,33 @@
         requestAnimationFrame(frame);
       }
 
+      function syncSliders() {
+        const showRoofs = CONFIG.showRoofs !== false;
+        const showTrees = CONFIG.showTrees !== false;
+        $("roofsCtl").hidden = !showRoofs;
+        $("treesCtl").hidden = !showTrees;
+        $("controlsWrap").hidden = !showRoofs && !showTrees;
+        $("legRoofs").hidden = !showRoofs;
+        $("legTrees").hidden = !showTrees;
+        $("thRoofs").hidden = !showRoofs;
+        $("thTrees").hidden = !showTrees;
+        if (!showRoofs && state.roofs !== 0) {
+          state.roofs = 0;
+          $("roofs").value = 0;
+          $("roofsV").textContent = 0;
+          paintRoofs();
+        }
+        if (!showTrees && state.trees !== 0) {
+          state.trees = 0;
+          $("trees").value = 0;
+          $("treesV").textContent = 0;
+          paintTrees();
+        }
+        renderTrials();
+      }
+
       function rebuild() {
+        syncSliders();
         flyToCity();
         $("cityPill").textContent = city().name;
         $("monthPill").textContent = MONTHS[CONFIG.month];
@@ -2036,6 +2112,8 @@
       }
 
       function renderTrials() {
+        const hideRoofs = CONFIG.showRoofs === false ? " hidden" : "";
+        const hideTrees = CONFIG.showTrees === false ? " hidden" : "";
         $("trialTableBody").innerHTML = state.trials
           .map(
             (t) => `
@@ -2047,8 +2125,8 @@
           <span>${esc(t.city)}</span>
         </label>
       </td>
-      <td class="num">${t.roofs}%</td>
-      <td class="num">${t.trees}%</td>
+      <td class="num"${hideRoofs}>${t.roofs}%</td>
+      <td class="num"${hideTrees}>${t.trees}%</td>
       <td class="num">${toUnit(t.dayAvg).toFixed(1)}${unitLbl()}</td>
       <td class="num">${toUnit(t.dayHigh).toFixed(1)}${unitLbl()}</td>
       <td class="num">
@@ -2252,14 +2330,34 @@
         $("locIn").value = city().name;
         $("monthSel").value = CONFIG.month;
         $("labelIn").value = CONFIG.label;
+        $("showRoofsIn").checked = CONFIG.showRoofs !== false;
+        $("showTreesIn").checked = CONFIG.showTrees !== false;
       }
+
+      function applySliderAuthoring() {
+        CONFIG.showRoofs = $("showRoofsIn").checked;
+        CONFIG.showTrees = $("showTreesIn").checked;
+        syncSliders();
+        renderConfig();
+        renderClimTable();
+        renderMath();
+      }
+      $("showRoofsIn").onchange = applySliderAuthoring;
+      $("showTreesIn").onchange = applySliderAuthoring;
 
       $("applyBtn").onclick = () => {
         CONFIG.month = +$("monthSel").value;
         CONFIG.label = $("labelIn").value.trim();
+        CONFIG.showRoofs = $("showRoofsIn").checked;
+        CONFIG.showTrees = $("showTreesIn").checked;
         rebuild();
         reset(); // saved trials persist so students can compare across cities
-        logEvent("authorAppliedConfig", { city: CONFIG.city, month: MONTHS[CONFIG.month] });
+        logEvent("authorAppliedConfig", {
+          city: CONFIG.city,
+          month: MONTHS[CONFIG.month],
+          showRoofs: CONFIG.showRoofs,
+          showTrees: CONFIG.showTrees,
+        });
       };
       $("copyBtn").onclick = () => {
         navigator.clipboard?.writeText(JSON.stringify(CONFIG, null, 2));
@@ -2272,6 +2370,8 @@
           label: CONFIG.label,
           unit: CONFIG.unit,
         });
+        if (!CONFIG.showRoofs) p.set("roofs", "0");
+        if (!CONFIG.showTrees) p.set("trees", "0");
         const cc = city();
         if (cc.custom) p.set("loc", `${cc.name}@${cc.lat},${cc.lon}`);
         else p.set("city", CONFIG.city);
@@ -2388,6 +2488,10 @@ uhi-city-model.html?city=richmond&month=6&unit=F
         if (p.get("month") !== null && p.get("month") !== "") CONFIG.month = +p.get("month");
         if (p.get("label")) CONFIG.label = p.get("label");
         if (p.get("unit") === "C" || p.get("unit") === "F") CONFIG.unit = p.get("unit");
+        if (p.get("roofs") === "0" || p.get("roofs") === "false" || p.get("showRoofs") === "false")
+          CONFIG.showRoofs = false;
+        if (p.get("trees") === "0" || p.get("trees") === "false" || p.get("showTrees") === "false")
+          CONFIG.showTrees = false;
       })();
 
       /* ---- go ---- */
